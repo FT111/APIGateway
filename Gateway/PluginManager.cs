@@ -2,15 +2,22 @@ namespace Gateway;
 using McMaster.NETCore.Plugins;
 
 
+public class ServiceContainer
+{
+    public required IService  Instance { get; set; }
+    public required ServiceTypes ServiceType { get; set; }
+    // public required Dictionary<string, string> PluginConfiguration { get; set; }
+}
+
+
 public class PluginManager
 {
     private List<IPlugin> _plugins = [];
-    private List<IService> _services = [];
+    private readonly PluginServiceRegistrar _registrar = new();
 
     public Task LoadPluginsAsync()
     {
         var pluginLoaders = PluginLoader.GetPluginLoaders();
-        var registry = new PluginServiceRegistrar();
         
         foreach (var loader in pluginLoaders)
         {
@@ -22,14 +29,14 @@ public class PluginManager
 
             _plugins.Add(plugin);
             
-            plugin.ConfigureRegistrar(registry);
+            plugin.ConfigureRegistrar(_registrar);
         }
         return Task.CompletedTask;
-}
+    }
 
 public class PluginServiceRegistrar
 {
-    private readonly IServiceCollection _services = new ServiceCollection();
+    private readonly Dictionary<string, ServiceContainer> _services = new();
     private readonly Dictionary<string, Dictionary<string, string>> _configurations = new();
     
     public void RegisterConfiguration(string pluginName, string key, string value)
@@ -51,18 +58,36 @@ public class PluginServiceRegistrar
         return null;
     }
     
-    public IEnumerable<IService> GetServices()
+    public void UpdateConfigurationKey(IPlugin plugin, string key, string value)
     {
-        return _services.Select(descriptor => descriptor.ImplementationInstance)
-            .OfType<IService>();
+        var pluginName = plugin.GetManifest().Name;
+        if (_configurations.ContainsKey(pluginName))
+        {
+            _configurations[pluginName][key] = value;
+            plugin.UpdateConfigKey(key, value);
+        } else
+        {
+            throw new KeyNotFoundException($"Configuration for plugin '{pluginName}' not found.");
+        }
     }
-
-
-    public void RegisterService<T>(T service) where T : IService
+    
+    public IEnumerable<T>  GetServicesByType<T>(ServiceTypes serviceType) where T : IService
     {
-        _services.AddSingleton(
-            new ServiceDescriptor(typeof(T), service)
-            );
+        return _services.Values
+            .Where(s => s.ServiceType == serviceType && s.Instance is T)
+            .Select(s => (T)s.Instance);
+    }
+    
+
+
+    public void RegisterService<T>(T service, ServiceTypes serviceType) where T : IService
+    {
+        _services[typeof(T).FullName ?? ""] = new ServiceContainer
+        {
+            Instance = service,
+            ServiceType = serviceType
+            
+        };
     }
 }
 }
