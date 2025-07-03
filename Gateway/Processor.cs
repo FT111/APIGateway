@@ -14,6 +14,8 @@ public class RequestContext
     public required bool IsBlocked { get; set; }
     public required string TargetPathBase { get; set; }
     public string PathPrefix { get; set; } = string.Empty;
+    
+    public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
 }
 
 public interface IService

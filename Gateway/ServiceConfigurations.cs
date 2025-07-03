@@ -8,6 +8,7 @@ public class PipeConfiguration
     public IRequestForwarder? Forwarder { get; set; } = null;
 }
 
+
 public interface IConfigurationsProvider
 {
     void Initialise (PluginManager.PluginServiceRegistrar registry);
@@ -16,6 +17,8 @@ public interface IConfigurationsProvider
     Task<PipeConfiguration> GetEndpointConfigurationAsync(string endpoint);
     Task SetGlobalConfigurationAsync(PipeConfiguration configuration);
     Task SetEndpointConfigurationAsync(string endpoint, PipeConfiguration configuration);
+    Task GetPluginConfigurationsAsync();
+    Task SetPluginConfigurationAsync(string pluginName, string key, string value);
 }
 
 public class ServiceConfigurationManager
@@ -24,6 +27,7 @@ public class ServiceConfigurationManager
     
     private Dictionary<string, PipeConfiguration> EndpointConfigurations { get; set; } = new();
     public PipeConfiguration GlobalConfiguration { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> PluginConfigurations { get; set; } = new();
     
     public async Task LoadConfigurationsAsync()
     {
@@ -51,4 +55,26 @@ public class ServiceConfigurationManager
         GlobalConfiguration = configuration;
         await Provider.SetGlobalConfigurationAsync(configuration);
     }
+    
+    public async Task SetPluginConfigurationAsync(string pluginName, string key, string value)
+    {
+        if (!PluginConfigurations.ContainsKey(pluginName))
+        {
+            PluginConfigurations[pluginName] = new Dictionary<string, string>();
+        }
+        
+        PluginConfigurations[pluginName][key] = value;
+        await Provider.SetPluginConfigurationAsync(pluginName, key, value);
+    }
+    
+    public async Task<Dictionary<string, string>> GetPluginConfigurationsAsync(string pluginName)
+    {
+        if (PluginConfigurations.TryGetValue(pluginName, out var config))
+        {
+            return config;
+        }
+        await Provider.GetPluginConfigurationsAsync();
+        return PluginConfigurations.ContainsKey(pluginName) ? PluginConfigurations[pluginName] : new Dictionary<string, string>();
+    }
+    
 }
