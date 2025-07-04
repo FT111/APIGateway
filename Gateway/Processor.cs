@@ -1,11 +1,8 @@
+using GatewayPluginContract;
+
 namespace Gateway;
 
-public enum ServiceTypes
-{
-    PreProcessor,
-    PostProcessor,
-    Forwarder
-}
+
     
 public class RequestContext
 {
@@ -18,10 +15,6 @@ public class RequestContext
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
 }
 
-public interface IService
-{
-    
-}
 
 public interface IRequestProcessor : IService
 {
@@ -44,17 +37,20 @@ public interface IRequestForwarder : IService
 
 public class RequestPipeline
 {
-    private readonly List<PipeProcessorContainer> _preProcessors;
-    private readonly List<PipeProcessorContainer> _postProcessors;
-    private IRequestForwarder _forwarder;
+    private List<PipeProcessorContainer> _preProcessors;
+    private List<PipeProcessorContainer> _postProcessors;
+    private IRequestForwarder? _forwarder;
+    private readonly ServiceConfigurationManager? _configManager;
 
-    public RequestPipeline(IRequestForwarder forwarder,
+    public RequestPipeline(IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
-        List<PipeProcessorContainer> postProcessors)
+        List<PipeProcessorContainer> postProcessors,
+        ServiceConfigurationManager? configManager = null)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
         _forwarder = forwarder;
+        _configManager = configManager;
     }
 
     public void SetForwarder(IRequestForwarder forwarder)
@@ -62,8 +58,26 @@ public class RequestPipeline
         _forwarder = forwarder;
     }
 
+    private void _useConfiguration(PipeConfiguration config)
+    {
+        _preProcessors = config.PreProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
+        _postProcessors = config.PostProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
+        _forwarder = config.Forwarder ?? throw new InvalidOperationException("Forwarder cannot be null in configuration.");
+    }
+
     public async Task ProcessAsync(RequestContext context)
     {
+        if (_configManager != null)
+        {
+            // Load global configuration if available
+            context.PluginConfiguration =
+                await _configManager.GetEndpointPluginConfigurationsAsync(context.Request.Path);
+            
+            var config = await _configManager.GetEndpointConfigurationAsync(context.Request.Path);
+            _useConfiguration(config);
+        }
+        
+        
         foreach (var processor in _preProcessors)
         {
             await processor.Processor.ProcessAsync(context);
@@ -93,6 +107,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private IRequestForwarder _forwarder = null!;
+    private ServiceConfigurationManager? _configManager = null;
 
     public RequestPipelineBuilder WithForwarder(IRequestForwarder forwarder)
     {
@@ -153,39 +168,24 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder FromConfiguration(PipeConfiguration configuration)
+    public RequestPipelineBuilder WithConfigManager(ServiceConfigurationManager manager)
     {
-        if (configuration == null)
-        {
-            throw new ArgumentNullException(nameof(configuration), "Configuration cannot be null.");
-        }
-
-        _forwarder = configuration.Forwarder;
-
-        foreach (var preProcessor in configuration.PreProcessors)
-        {
-            AddPreProcessor(preProcessor.Processor, preProcessor.Order);
-        }
-
-        foreach (var postProcessor in configuration.PostProcessors)
-        {
-            AddPostProcessor(postProcessor.Processor, postProcessor.Order);
-        }
-
+        _configManager = manager ?? throw new ArgumentNullException(nameof(manager), "Configuration manager cannot be null.");
+        
         return this;
     }
 
     public RequestPipeline Build()
     {
-        if (_forwarder == null)
+        if (_forwarder == null && _configManager == null)
         {
-            throw new InvalidOperationException("Forwarder must be set before building the pipeline.");
+            throw new InvalidOperationException("Without a config manager, a forwarder must be set before building the pipeline.");
         }
         
         // Sort the processors by their order
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager);
     }
 }

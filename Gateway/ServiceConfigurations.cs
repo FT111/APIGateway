@@ -3,21 +3,22 @@ using System.Collections.Generic;
 
 public class PipeConfiguration
 {
-    public List<PipeProcessorContainer> PreProcessors { get; set; } = [];
-    public List<PipeProcessorContainer> PostProcessors { get; set; } = [];
-    public IRequestForwarder? Forwarder { get; set; } = null;
+    public required List<PipeProcessorContainer> PreProcessors { get; set; } 
+    public required List<PipeProcessorContainer> PostProcessors { get; set; }
+    public required IRequestForwarder? Forwarder { get; set; }
 }
 
 
 public interface IConfigurationsProvider
 {
-    void Initialise (PluginManager.PluginServiceRegistrar registry);
+    Task InitialiseAsync (PluginManager.PluginServiceRegistrar registry);
     Task<PipeConfiguration> GetGlobalConfigurationAsync();
     Task<Dictionary<string, PipeConfiguration>> GetEndpointConfigurationsAsync();
     Task<PipeConfiguration> GetEndpointConfigurationAsync(string endpoint);
     Task SetGlobalConfigurationAsync(PipeConfiguration configuration);
     Task SetEndpointConfigurationAsync(string endpoint, PipeConfiguration configuration);
-    Task GetPluginConfigurationsAsync();
+    Task<Dictionary<string, Dictionary<string, string>>> GetPluginConfigurationsAsync();
+    Task<Dictionary<string, string>> GetEndpointPluginConfigurationsAsync(string endpoint);
     Task SetPluginConfigurationAsync(string pluginName, string key, string value);
 }
 
@@ -26,11 +27,12 @@ public class ServiceConfigurationManager
     public required IConfigurationsProvider Provider { get; set; }
     
     private Dictionary<string, PipeConfiguration> EndpointConfigurations { get; set; } = new();
-    public PipeConfiguration GlobalConfiguration { get; set; } = new();
+    public PipeConfiguration? GlobalConfiguration { get; set; } = null;
     public Dictionary<string, Dictionary<string, string>> PluginConfigurations { get; set; } = new();
     
-    public async Task LoadConfigurationsAsync()
+    public async Task LoadConfigurationsAsync(PluginManager.PluginServiceRegistrar registry)
     {
+        await Provider.InitialiseAsync(registry);
         GlobalConfiguration = await Provider.GetGlobalConfigurationAsync();
         EndpointConfigurations = await Provider.GetEndpointConfigurationsAsync();
     }
@@ -75,6 +77,12 @@ public class ServiceConfigurationManager
         }
         await Provider.GetPluginConfigurationsAsync();
         return PluginConfigurations.ContainsKey(pluginName) ? PluginConfigurations[pluginName] : new Dictionary<string, string>();
+    }
+    
+    public async Task<Dictionary<string, Dictionary<string, string>>> GetEndpointPluginConfigurationsAsync(string endpoint)
+    {
+        var configurations = await Provider.GetPluginConfigurationsAsync();
+        return configurations ?? new Dictionary<string, Dictionary<string, string>>();
     }
     
 }

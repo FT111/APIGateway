@@ -1,26 +1,17 @@
+using GatewayPluginContract;
+
 namespace Gateway;
 using McMaster.NETCore.Plugins;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-
-
-public interface IPlugin
-{
-    public Dictionary<string, bool> GetManifest();
-    
-    public List<IRequestProcessor> GetPreProcessors();
-    public List<IRequestProcessor> GetPostProcessors();
-    public List<IRequestForwarder> GetForwarders();
-
-    public void ConfigureRegistrar(PluginManager.PluginServiceRegistrar registrar);
-}
 
 public static class PluginLoader
 {
 
     private static System.Collections.IEnumerable GetPluginDlls(string subDirectory)
     {
-        var fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
+        // var fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
+        var fullDir = "/Users/freddietaylor/Projects/C#Stuff/Gateway/Gateway/services/plugins";
         foreach (var dir in Directory.GetDirectories(fullDir))
         {
             var dirName = Path.GetFileName(dir);
@@ -33,11 +24,12 @@ public static class PluginLoader
         }
     }
 
-    public static List<McMaster.NETCore.Plugins.PluginLoader> GetPluginLoaders(string subDirectory = "plugins")
+    public static List<McMaster.NETCore.Plugins.PluginLoader> GetPluginLoaders(string subDirectory = "services/plugins")
     {
         var pluginLoaders = new List<McMaster.NETCore.Plugins.PluginLoader>();
         foreach (string pluginDll in GetPluginDlls(subDirectory))
         {
+            Console.WriteLine($"Loading plugin from {pluginDll}");
             pluginLoaders.Add(
                 McMaster.NETCore.Plugins.PluginLoader.CreateFromAssemblyFile(
                     pluginDll,

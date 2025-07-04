@@ -1,5 +1,6 @@
+using GatewayPluginContract;
+
 namespace Gateway;
-using McMaster.NETCore.Plugins;
 
 
 public class ServiceContainer
@@ -15,9 +16,9 @@ public class PluginManager
     private List<IPlugin> _plugins = [];
     private readonly PluginServiceRegistrar _registrar = new();
 
-    public Task LoadPluginsAsync()
+    public Task LoadPluginsAsync(string path)
     {
-        var pluginLoaders = PluginLoader.GetPluginLoaders();
+        var pluginLoaders = PluginLoader.GetPluginLoaders(path);
         
         foreach (var loader in pluginLoaders)
         {
@@ -34,7 +35,7 @@ public class PluginManager
         return Task.CompletedTask;
     }
 
-public class PluginServiceRegistrar
+public class PluginServiceRegistrar : IPluginServiceRegistrar
 {
     private readonly Dictionary<string, ServiceContainer> _services = new();
     // private readonly Dictionary<string, Dictionary<string, string>> _configurations = new();
