@@ -18,7 +18,7 @@ namespace Gateway
                 app.MapOpenApi();
             }
 
-            app.UseHttpsRedirection();
+            // app.UseHttpsRedirection();
             
             ApiRoutes.Init(app);
 

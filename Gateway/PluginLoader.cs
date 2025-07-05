@@ -33,7 +33,7 @@ public static class PluginLoader
             pluginLoaders.Add(
                 McMaster.NETCore.Plugins.PluginLoader.CreateFromAssemblyFile(
                     pluginDll,
-                    sharedTypes: new[] { typeof(IPlugin), typeof(IRequestProcessor), typeof(IRequestForwarder) },
+                    sharedTypes: new[] { typeof(IPlugin), typeof(GatewayPluginContract.IRequestProcessor), typeof( GatewayPluginContract.IRequestForwarder) },
                     isUnloadable: true
                 ));
         }

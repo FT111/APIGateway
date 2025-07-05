@@ -23,15 +23,9 @@ public interface IRequestProcessor : IService
 }
 public class PipeProcessorContainer
 {
-    public IRequestProcessor Processor { get; set; } = null!;
+    public GatewayPluginContract.IRequestProcessor Processor { get; set; } = null!;
     public uint Order { get; set; } = 0;
     public bool IsEnabled { get; set; } = true; // Enabled by default
-}
-
-
-public interface IRequestForwarder : IService
-{
-    Task ForwardAsync(RequestContext context);
 }
 
 
@@ -39,10 +33,10 @@ public class RequestPipeline
 {
     private List<PipeProcessorContainer> _preProcessors;
     private List<PipeProcessorContainer> _postProcessors;
-    private IRequestForwarder? _forwarder;
+    private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly ServiceConfigurationManager? _configManager;
 
-    public RequestPipeline(IRequestForwarder? forwarder,
+    public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         ServiceConfigurationManager? configManager = null)
@@ -53,7 +47,7 @@ public class RequestPipeline
         _configManager = configManager;
     }
 
-    public void SetForwarder(IRequestForwarder forwarder)
+    public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
     {
         _forwarder = forwarder;
     }
@@ -65,7 +59,7 @@ public class RequestPipeline
         _forwarder = config.Forwarder ?? throw new InvalidOperationException("Forwarder cannot be null in configuration.");
     }
 
-    public async Task ProcessAsync(RequestContext context)
+    public async Task ProcessAsync(GatewayPluginContract.IRequestContext context)
     {
         if (_configManager != null)
         {
@@ -106,29 +100,29 @@ public class RequestPipelineBuilder
 {
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
-    private IRequestForwarder _forwarder = null!;
+    private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
     private ServiceConfigurationManager? _configManager = null;
 
-    public RequestPipelineBuilder WithForwarder(IRequestForwarder forwarder)
+    public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
     {
         _forwarder = forwarder;
         return this;
     }
 
-    public RequestPipelineBuilder AddPreProcessor(IRequestProcessor processor, uint? order = null)
+    public RequestPipelineBuilder AddPreProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
     {
         AddProcessor(processor, ServiceTypes.PreProcessor, order);
         return this;
     }
     
 
-    public RequestPipelineBuilder AddPostProcessor(IRequestProcessor processor, uint? order = null)
+    public RequestPipelineBuilder AddPostProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
     {
         AddProcessor(processor, ServiceTypes.PostProcessor, order);
         return this;
     }
     
-    public RequestPipelineBuilder AddProcessor(IRequestProcessor processor, ServiceTypes type, uint? order = null)
+    public RequestPipelineBuilder AddProcessor(GatewayPluginContract.IRequestProcessor processor, ServiceTypes type, uint? order = null)
     {
         // Sets the order to the current count if not specified
         if (order is null)
