@@ -14,23 +14,27 @@ public class ServiceContainer
 public class PluginManager
 {
     private List<IPlugin> _plugins = [];
-    private readonly PluginServiceRegistrar _registrar = new();
+    internal readonly PluginServiceRegistrar Registrar = new();
 
     public Task LoadPluginsAsync(string path)
     {
-        var pluginLoaders = PluginLoader.GetPluginLoaders(path);
-        
-        foreach (var loader in pluginLoaders)
-        {
-            var plugin = loader.LoadDefaultAssembly().CreateInstance("IPlugin") as IPlugin;
-            if (plugin == null)
-            {
-                continue;
-            }
+        List<McMaster.NETCore.Plugins.PluginLoader> pluginLoaders = PluginLoader.GetPluginLoaders(path);
 
-            _plugins.Add(plugin);
-            
-            plugin.ConfigureRegistrar(_registrar);
+        foreach (var pluginLoader in pluginLoaders)
+        {
+            foreach (var pluginLoaderType in pluginLoader.LoadDefaultAssembly().GetTypes()
+                .Where(t => typeof(IPlugin).IsAssignableFrom(t) && t is { IsAbstract: false, IsClass: true }))
+            {
+                var plugin = pluginLoader.LoadDefaultAssembly().CreateInstance(pluginLoaderType.FullName) as IPlugin;
+                if (plugin == null)
+                {
+                    continue;
+                }
+
+                _plugins.Add(plugin);
+                
+                plugin.ConfigureRegistrar(Registrar);
+            }
         }
         return Task.CompletedTask;
     }
@@ -79,6 +83,14 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             .Select(s => (T)s.Instance);
     }
     
+    public ServiceContainer GetServiceByName(string name)
+    {
+        Console.WriteLine($"Retrieving service by name: {name}");
+        Console.WriteLine($"Available services: {string.Join(", ", _services.Keys)}");
+        return _services[name];
+        return _services.TryGetValue(name, out var serviceContainer) ? serviceContainer : throw new KeyNotFoundException($"Service '{name}' not found.");
+    }
+    
 
 
     public void RegisterService<T>(T service, ServiceTypes serviceType) where T : IService
@@ -89,6 +101,8 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             ServiceType = serviceType
             
         };
+        
+        Console.WriteLine($"Registered service: {typeof(T)} - {typeof(T).FullName} as {serviceType}");
     }
 }
 }
