@@ -1,0 +1,81 @@
+﻿namespace GatewayPluginContract;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+
+
+public interface IStore
+{
+    /// <summary>
+    /// Interface for a simple key-value store.
+    /// Implementations should provide a persistent storage mechanism.
+    /// </summary>
+    Task<T> GetAsync<T>(string key, string? scope = null) where T : class;
+    Task SetAsync<T>(string key, T value, string? scope = null) where T : class;
+    Task RemoveAsync(string key, string? scope = null);
+}
+
+public class PluginManifest
+{
+    public required string Name { get; init; }
+    public required string Version { get; init; } 
+    public required string Description { get; init; }
+    public required string Author { get; init; }
+}
+
+public interface IRequestContext
+{
+    HttpRequest Request { get; set; }
+    HttpResponse Response { get; set; }
+    bool IsBlocked { get; set; }
+    string TargetPathBase { get; set; }
+    string PathPrefix { get; set; }
+    Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; }
+}
+
+public class RequestContext : IRequestContext
+{
+    public required HttpRequest Request { get; set; }
+    public required HttpResponse Response { get; set; }
+    public required bool IsBlocked { get; set; }
+    public required string TargetPathBase { get; set; }
+    public string PathPrefix { get; set; } = string.Empty;
+    public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
+}
+
+public interface IService
+{
+    // Marker interface for services
+}
+
+public interface IRequestProcessor : IService
+{
+    // With request context and a method to add a deferred task
+    Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks);
+}
+
+public interface IRequestForwarder : IService
+{
+    Task ForwardAsync(IRequestContext context);
+}
+
+public enum ServiceTypes
+{
+    PreProcessor,
+    PostProcessor,
+    Forwarder
+}
+
+public interface IPluginServiceRegistrar
+{
+    void RegisterService<T>(T service, ServiceTypes serviceType) where T : IService;
+}
+
+public interface IPlugin
+{
+    public PluginManifest GetManifest();
+    
+    public Dictionary<ServiceTypes, IService[]> GetServices();
+
+    public void ConfigureRegistrar(IPluginServiceRegistrar registrar);
+}
