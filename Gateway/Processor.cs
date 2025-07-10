@@ -34,12 +34,12 @@ public class RequestPipeline
     private List<PipeProcessorContainer> _preProcessors;
     private List<PipeProcessorContainer> _postProcessors;
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
-    private readonly ServiceConfigurationManager? _configManager;
+    private readonly IConfigurationsProvider? _configManager;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
-        ServiceConfigurationManager? configManager = null)
+        IConfigurationsProvider? configManager = null)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
@@ -65,33 +65,43 @@ public class RequestPipeline
         {
             // Load global configuration if available
             context.PluginConfiguration =
-                await _configManager.GetEndpointPluginConfigurationsAsync(context.Request.Path);
+                await _configManager.GetServiceConfigsAsync(context.Request.Path);
             
-            var config = await _configManager.GetEndpointConfigurationAsync(context.Request.Path);
+            var config = await _configManager.GetPipeConfigsAsync(context.Request.Path);
             _useConfiguration(config);
         }
         
+        var deferredTasks = new List<Func<Task>>();
         
         foreach (var processor in _preProcessors)
         {
-            await processor.Processor.ProcessAsync(context);
+            await processor.Processor.ProcessAsync(context, deferredTasks);
             if (context.IsBlocked)
             {
                 return;
             }
         }
-
+        
+        if (_forwarder == null)
+        {
+            throw new InvalidOperationException("Forwarder is not set. Cannot process request without a forwarder.");
+        }
         await _forwarder.ForwardAsync(context);
 
         foreach (var processor in _postProcessors)
         {
-            await processor.Processor.ProcessAsync(context);
+            await processor.Processor.ProcessAsync(context, deferredTasks);
             if (context.IsBlocked)
             {
                 return;
             }
         }
         
+        // Execute all deferred tasks after processing all processors
+        foreach (var deferredTask in deferredTasks)
+        {
+            await deferredTask();
+        }
     }
 
 }
@@ -101,7 +111,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
-    private ServiceConfigurationManager? _configManager = null;
+    private IConfigurationsProvider? _configManager = null;
 
     public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
     {
@@ -162,7 +172,7 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithConfigManager(ServiceConfigurationManager manager)
+    public RequestPipelineBuilder WithConfigProvider(IConfigurationsProvider manager)
     {
         _configManager = manager ?? throw new ArgumentNullException(nameof(manager), "Configuration manager cannot be null.");
         
