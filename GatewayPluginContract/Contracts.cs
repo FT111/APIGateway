@@ -68,7 +68,7 @@ public enum ServiceTypes
 
 public interface IPluginServiceRegistrar
 {
-    void RegisterService<T>(T service, ServiceTypes serviceType) where T : IService;
+    void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
 }
 
 public interface IPlugin

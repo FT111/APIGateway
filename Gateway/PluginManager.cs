@@ -93,9 +93,11 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
     
 
 
-    public void RegisterService<T>(T service, ServiceTypes serviceType) where T : IService
+    public void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService
     {
-        _services[typeof(T).FullName ?? ""] = new ServiceContainer
+        var title = parentPlugin.GetManifest().Name + parentPlugin.GetManifest().Version + "/" + typeof(T).Name ?? "";
+        Console.WriteLine($"Registering service to registrar: {title} - {typeof(T).FullName} as {serviceType}");
+        _services[title] = new ServiceContainer
         {
             Instance = service,
             ServiceType = serviceType
