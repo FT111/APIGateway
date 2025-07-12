@@ -1,8 +1,30 @@
-﻿namespace GatewayPluginContract;
+﻿using System.IO.Pipelines;
+
+namespace GatewayPluginContract;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
+
+public class PipeConfiguration
+{
+    public required List<PipeProcessorContainer> PreProcessors { get; set; } 
+    public required List<PipeProcessorContainer> PostProcessors { get; set; }
+    public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; }
+}
+
+public class PipeConfigurationRecipe
+{
+    public required List<string> ServiceList { get; set; }
+}
+
+public class PipeProcessorContainer
+{
+    public GatewayPluginContract.IRequestProcessor Processor { get; set; } = null!;
+    public uint Order { get; set; } = 0;
+    public bool IsEnabled { get; set; } = true;
+    public string Identifier { get; set; } = string.Empty;
+}
 
 public interface IStore
 {
@@ -13,6 +35,10 @@ public interface IStore
     Task<T> GetAsync<T>(string key, string? scope = null) where T : class;
     Task SetAsync<T>(string key, T value, string? scope = null) where T : class;
     Task RemoveAsync(string key, string? scope = null);
+    
+    Task<PipeConfigurationRecipe> GetPipeConfigRecipeAsync(string? endpoint = null);
+    
+    
 }
 
 public class PluginManifest

@@ -21,12 +21,6 @@ public interface IRequestProcessor : IService
     Task ProcessAsync(RequestContext context);
 
 }
-public class PipeProcessorContainer
-{
-    public GatewayPluginContract.IRequestProcessor Processor { get; set; } = null!;
-    public uint Order { get; set; } = 0;
-    public bool IsEnabled { get; set; } = true; // Enabled by default
-}
 
 
 public class RequestPipeline
@@ -52,7 +46,7 @@ public class RequestPipeline
         _forwarder = forwarder;
     }
 
-    private void _useConfiguration(PipeConfiguration config)
+    private void UsePipeConfig(PipeConfiguration config)
     {
         _preProcessors = config.PreProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
         _postProcessors = config.PostProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
@@ -68,13 +62,14 @@ public class RequestPipeline
                 await _configManager.GetServiceConfigsAsync(context.Request.Path);
             
             var config = await _configManager.GetPipeConfigsAsync(context.Request.Path);
-            _useConfiguration(config);
+            UsePipeConfig(config);
         }
         
         var deferredTasks = new List<Func<Task>>();
         
         foreach (var processor in _preProcessors)
         {
+            Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
             await processor.Processor.ProcessAsync(context, deferredTasks);
             if (context.IsBlocked)
             {
@@ -90,6 +85,7 @@ public class RequestPipeline
 
         foreach (var processor in _postProcessors)
         {
+            Console.WriteLine($"Processing post-processor: {processor.Identifier}");
             await processor.Processor.ProcessAsync(context, deferredTasks);
             if (context.IsBlocked)
             {

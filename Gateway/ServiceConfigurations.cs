@@ -3,13 +3,6 @@ using GatewayPluginContract;
 namespace Gateway;
 using System.Collections.Generic;
 
-public class PipeConfiguration
-{
-    public required List<PipeProcessorContainer> PreProcessors { get; set; } 
-    public required List<PipeProcessorContainer> PostProcessors { get; set; }
-    public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; }
-}
-
 
 public interface IConfigurationsProvider
 {
