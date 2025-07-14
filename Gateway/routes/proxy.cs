@@ -20,7 +20,7 @@ public static class ApiRoutes
         var meow = await store.GetAsync<string>("test", "global");
         Console.WriteLine($"Retrieved from store: {meow}");
         
-        const string prefix = "/api";
+        const string prefix = "/";
         const string targetUrl = "localhost:8000";
         var api = app.MapGroup(prefix)
             .WithOpenApi();
@@ -33,9 +33,13 @@ public static class ApiRoutes
         
         var requestPipeline = new RequestPipelineBuilder()
             .WithConfigProvider(serviceConfigProvider)
+            .WithStore(store)
             .Build();
         
-        
+        api.MapGet("/", () => Results.Ok("API Gateway is running!"))
+            .WithName("ApiRoot")
+            .WithTags("Api")
+            .Produces(StatusCodes.Status200OK);
         api.Map("/{**path}", (HttpContext context, string path) =>
                 {
                     var requestContext = new GatewayPluginContract.RequestContext

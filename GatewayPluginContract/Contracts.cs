@@ -32,14 +32,24 @@ public interface IStore
     /// Interface for a simple key-value store.
     /// Implementations should provide a persistent storage mechanism.
     /// </summary>
-    Task<T> GetAsync<T>(string key, string? scope = null) where T : class;
-    Task SetAsync<T>(string key, T value, string? scope = null) where T : class;
+    Task<T> GetAsync<T>(string key, string? scope = null) where T : notnull;
+    Task SetAsync<T>(string key, T value, string type, string? scope = null) where T : notnull;
     Task RemoveAsync(string key, string? scope = null);
+    
+    Task<Dictionary<string, Dictionary<string, string>>> GetPluginConfigsAsync(string? endpoint = null);
     
     Task<PipeConfigurationRecipe> GetPipeConfigRecipeAsync(string? endpoint = null);
     
     
 }
+
+public interface IScopedStore
+{
+    Task<T> GetAsync<T>(string key) where T : notnull;
+    Task SetAsync<T>(string key, string type, T value) where T : notnull;
+    Task RemoveAsync(string key);
+}
+
 
 public class PluginManifest
 {
@@ -77,7 +87,7 @@ public interface IService
 public interface IRequestProcessor : IService
 {
     // With request context and a method to add a deferred task
-    Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks);
+    Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks, IScopedStore store);
 }
 
 public interface IRequestForwarder : IService

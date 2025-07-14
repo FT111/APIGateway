@@ -29,16 +29,19 @@ public class RequestPipeline
     private List<PipeProcessorContainer> _postProcessors;
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
+    private readonly IStore _store;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
-        IConfigurationsProvider? configManager = null)
+        IConfigurationsProvider configManager,
+        IStore store)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
         _forwarder = forwarder;
         _configManager = configManager;
+        _store = store;
     }
 
     public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -61,7 +64,7 @@ public class RequestPipeline
             context.PluginConfiguration =
                 await _configManager.GetServiceConfigsAsync(context.Request.Path);
             
-            var config = await _configManager.GetPipeConfigsAsync(context.Request.Path);
+            var config = await _configManager.GetPipeConfigAsync(context.Request.Path);
             UsePipeConfig(config);
         }
         
@@ -70,7 +73,8 @@ public class RequestPipeline
         foreach (var processor in _preProcessors)
         {
             Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
-            await processor.Processor.ProcessAsync(context, deferredTasks);
+            var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
+            await processor.Processor.ProcessAsync(context, deferredTasks, serviceStore);
             if (context.IsBlocked)
             {
                 return;
@@ -86,20 +90,21 @@ public class RequestPipeline
         foreach (var processor in _postProcessors)
         {
             Console.WriteLine($"Processing post-processor: {processor.Identifier}");
-            await processor.Processor.ProcessAsync(context, deferredTasks);
+            var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
+            await processor.Processor.ProcessAsync(context, deferredTasks, serviceStore);
             if (context.IsBlocked)
             {
                 return;
             }
         }
-        
+
         // Execute all deferred tasks after processing all processors
         foreach (var deferredTask in deferredTasks)
         {
             await deferredTask();
         }
     }
-
+    
 }
 
 public class RequestPipelineBuilder
@@ -107,6 +112,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
+    private IStore? _store = null;
     private IConfigurationsProvider? _configManager = null;
 
     public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -174,10 +180,16 @@ public class RequestPipelineBuilder
         
         return this;
     }
+    
+    public RequestPipelineBuilder WithStore(IStore store)
+    {
+        _store = store;
+        return this;
+    }
 
     public RequestPipeline Build()
     {
-        if (_forwarder == null && _configManager == null)
+        if (_configManager == null || _store == null)
         {
             throw new InvalidOperationException("Without a config manager, a forwarder must be set before building the pipeline.");
         }
@@ -186,6 +198,6 @@ public class RequestPipelineBuilder
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _store);
     }
 }
