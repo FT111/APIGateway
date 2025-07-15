@@ -26,16 +26,17 @@ public class LectiPlugin : IPlugin
 
     public void ConfigureRegistrar(IPluginServiceRegistrar registrar)
     {
-        registrar.RegisterService<LectiSelector>(this, new LectiSelector(), ServiceTypes.PreProcessor);
+        registrar.RegisterService<Selector>(this, new Selector(), ServiceTypes.PreProcessor);
+        registrar.RegisterService<Checker>(this, new Checker(), ServiceTypes.PostProcessor);
     }
     
     public Dictionary<ServiceTypes, IService[]> GetServices()
     {
         return new Dictionary<ServiceTypes, IService[]>
         {
-            { ServiceTypes.PreProcessor, Array.Empty<IService>() },
-            { ServiceTypes.PostProcessor, Array.Empty<IService>() },
-            { ServiceTypes.Forwarder, Array.Empty<IService>() }
+            { ServiceTypes.PreProcessor, [new Selector()] },
+            { ServiceTypes.PostProcessor, [new Checker()] },
+            { ServiceTypes.Forwarder, [] }
         };
     }
 }

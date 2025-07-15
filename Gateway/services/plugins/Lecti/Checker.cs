@@ -1,0 +1,49 @@
+using GatewayPluginContract;
+
+namespace Lecti;
+
+/// <summary>
+/// Handles error fallbacks.
+/// If the chosen variation fails, it will pick another one.
+/// </summary>
+public class Checker : IRequestProcessor
+{
+    public Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks, IScopedStore store)
+    {
+        // Reroute the request if the response is not successful
+        Console.WriteLine($"Checking response status code: {context.Response.StatusCode} for request to {context.Request.Path}");
+        if ((context.Response.StatusCode.ToString().StartsWith("2") ||
+               context.Response.StatusCode.ToString().StartsWith("3")) && !context.IsForwardingFailed) return Task.CompletedTask;
+        
+        Console.WriteLine($"Response from {context.TargetPathBase} failed with status code {context.Response.StatusCode} and {context.IsForwardingFailed} fault. Checking for fallbacks...");
+
+        List<string> availableVariations =
+            System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                context.PluginConfiguration["Lecti0.1"]["downstream_variants"]) 
+            ?? [context.TargetPathBase];
+
+        availableVariations.Remove(context.TargetPathBase);
+
+        if (availableVariations.Count > 0)
+        {
+            // Randomly select a new variation
+            var random = new Random();
+            var newVariation = availableVariations[random.Next(0, availableVariations.Count)];
+
+            store.SetAsync<string>(
+                context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
+                "text",
+                newVariation);
+            context.TargetPathBase = newVariation;
+            context.IsRestartRequested = true;
+
+            Console.WriteLine($"Falling back to {newVariation} for request to {context.Request.Path}");
+        }
+        else
+        {
+            Console.WriteLine("No fallback variations available.");
+        }
+        return Task.CompletedTask;
+
+    }
+}

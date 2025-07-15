@@ -2,7 +2,7 @@ using GatewayPluginContract;
 
 namespace Lecti;
 
-public class LectiSelector : IRequestProcessor
+public class Selector : IRequestProcessor
 {
     public async Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks, IScopedStore store)
     {
@@ -16,17 +16,14 @@ public class LectiSelector : IRequestProcessor
         {
             // If not, randomly assign one of the variations
             var random = new Random();
-            Console.WriteLine($"Assigning new variation for {context.Request.HttpContext.Connection.RemoteIpAddress}");
-            Console.WriteLine($"Available variations: {context.PluginConfiguration["Lecti0.1"]["downstream_variants"]}");
-            foreach (var ip in System.Text.Json.JsonSerializer.Deserialize<List<string>>(context.PluginConfiguration["Lecti0.1"]["downstream_variants"])!)
-            {
-                Console.WriteLine($"Available variation: {ip}");
-            }
+            Console.WriteLine($"Assigning new Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress}");
 
-            List<string>? availableVariations = System.Text.Json.JsonSerializer.Deserialize<List<string>>(context.PluginConfiguration["Lecti0.1"]["downstream_variants"])
-                ?? throw new InvalidOperationException("No downstream variants configured in plugin settings.");
+
+            List<string> availableVariations =
+                System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                    context.PluginConfiguration["Lecti0.1"]["downstream_variants"])
+                ?? [context.TargetPathBase];
             var variation = random.Next(0, availableVariations.Count);
-            Console.WriteLine($"Assigned variation: {variation}");
             context.TargetPathBase = availableVariations[variation];
 
             // Store the assigned variation in the scoped store
