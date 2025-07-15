@@ -10,12 +10,12 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
     {
         var request = context.Request;
         var response = context.Response;
-        var amendedPath = request.Path.ToString().Remove(0, context.PathPrefix.Length);
-
+        var amendedPath = request.Path.ToString().Remove(0, context.GatewayPathPrefix.Length);
+        
         var forwardedRequest = new HttpRequestMessage
         {
             Method = new HttpMethod(request.Method),
-            RequestUri = new Uri($"{request.Scheme}://{context.TargetPathBase}{amendedPath}{request.QueryString}"),
+            RequestUri = new Uri($"{request.Scheme}://{context.TargetPathBase}/{amendedPath}{request.QueryString}"),
             Content = request.HasFormContentType
                 ? new FormUrlEncodedContent(request.Form.ToDictionary(k => k.Key, v => v.Value.ToString()))
                 : request.Body.CanSeek
@@ -34,7 +34,11 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
         try 
         {
             // Forward the request to the target URL
+            response.Clear();
             forwardedResponse = await _client.SendAsync(forwardedRequest);
+            await forwardedResponse.Content.LoadIntoBufferAsync();
+            
+            response.StatusCode = (int)forwardedResponse.StatusCode;
 
             // Copy headers from the forwarded response to the original response
             foreach (var header in forwardedResponse.Headers)
@@ -42,11 +46,11 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
                 response.Headers[header.Key] = header.Value.ToArray();
             }
             
-            if (forwardedResponse.Content == null)
-            {
-                response.StatusCode = (int)HttpStatusCode.NoContent; // No content to forward
-                return;
-            }
+            // if (forwardedResponse.Content == null)
+            // {
+            //     response.StatusCode = (int)HttpStatusCode.NoContent; // No content to forward
+            //     return;
+            // }
             
             // Derive the content type from the forwarded response
             if (forwardedResponse.Content.Headers.ContentType != null)
@@ -56,11 +60,22 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
             await forwardedResponse.Content.CopyToAsync(response.Body);
             
         }
+        catch (InvalidOperationException e)
+        {
+            return;
+        }
         catch (HttpRequestException e)
         {
-            // Handle exceptions, e.g., log them or set a specific status code
-            response.StatusCode = (int)HttpStatusCode.BadGateway;
-            await response.WriteAsync($"Error forwarding request: {e.Message}");
+            try
+            {
+                context.IsForwardingFailed = true;
+                return;
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur while writing the response
+                Console.WriteLine($"Error writing response: {ex.Message}");
+            }
         }
     }
 }
