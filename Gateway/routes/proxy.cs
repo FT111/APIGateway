@@ -46,12 +46,11 @@ public static class ApiRoutes
                     {
                         Request = context.Request,
                         Response = context.Response,
-                        IsBlocked = false,
                         TargetPathBase = targetUrl,
-                        PathPrefix = prefix
+                        GatewayPathPrefix = prefix
                     };
                     
-                    return requestPipeline.ProcessAsync(requestContext);
+                    return requestPipeline.ProcessAsync(requestContext, context);
                 }
             ).WithName("ApiForwarder")
             .WithTags("Api")

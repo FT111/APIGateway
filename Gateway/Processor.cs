@@ -1,24 +1,12 @@
+using System.Net;
 using GatewayPluginContract;
 
 namespace Gateway;
 
 
-    
-public class RequestContext
-{
-    public required HttpRequest Request { get; set; }
-    public required HttpResponse Response { get; set; }
-    public required bool IsBlocked { get; set; }
-    public required string TargetPathBase { get; set; }
-    public string PathPrefix { get; set; } = string.Empty;
-    
-    public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
-}
-
-
 public interface IRequestProcessor : IService
 {
-    Task ProcessAsync(RequestContext context);
+    Task ProcessAsync(IRequestContext context);
 
 }
 
@@ -56,8 +44,12 @@ public class RequestPipeline
         _forwarder = config.Forwarder ?? throw new InvalidOperationException("Forwarder cannot be null in configuration.");
     }
 
-    public async Task ProcessAsync(GatewayPluginContract.IRequestContext context)
+    public async Task ProcessAsync(GatewayPluginContract.IRequestContext context, HttpContext httpContext)
     {
+        // Sets ephemeral state to initial values
+        context.IsRestartRequested = false;
+        context.IsForwardingFailed = false;
+        
         if (_configManager != null)
         {
             // Load global configuration if available
@@ -79,6 +71,13 @@ public class RequestPipeline
             {
                 return;
             }
+            if (context is { IsRestartRequested: true, RestartCount: < 3 })
+            {
+                Console.WriteLine("Restart requested, reprocessing the pipeline.");
+                context.RestartCount++;
+                await ProcessAsync(context, httpContext);
+                return;
+            }
         }
         
         if (_forwarder == null)
@@ -92,10 +91,25 @@ public class RequestPipeline
             Console.WriteLine($"Processing post-processor: {processor.Identifier}");
             var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
             await processor.Processor.ProcessAsync(context, deferredTasks, serviceStore);
+            
+            // Handle request operations
+            
             if (context.IsBlocked)
             {
                 return;
             }
+            if (context is { IsRestartRequested: true, RestartCount: < 3 })
+            {
+                Console.WriteLine("Restart requested, reprocessing the pipeline.");
+                context.RestartCount++;
+                await ProcessAsync(context, httpContext);
+                return;
+            }
+        }
+
+        if (context.IsForwardingFailed)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
 
         // Execute all deferred tasks after processing all processors

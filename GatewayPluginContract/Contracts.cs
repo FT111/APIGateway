@@ -64,8 +64,11 @@ public interface IRequestContext
     HttpRequest Request { get; set; }
     HttpResponse Response { get; set; }
     bool IsBlocked { get; set; }
+    bool IsRestartRequested { get; set; }
+    bool IsForwardingFailed { get; set; }
+    uint RestartCount { get; set; }
     string TargetPathBase { get; set; }
-    string PathPrefix { get; set; }
+    string GatewayPathPrefix { get; set; }
     Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; }
 }
 
@@ -73,9 +76,12 @@ public class RequestContext : IRequestContext
 {
     public required HttpRequest Request { get; set; }
     public required HttpResponse Response { get; set; }
-    public required bool IsBlocked { get; set; }
+    public bool IsBlocked { get; set; } = false;
+    public bool IsRestartRequested { get; set; } = false;
+    public bool IsForwardingFailed { get; set; } = false;
+    public uint RestartCount { get; set; } = 0;
     public required string TargetPathBase { get; set; }
-    public string PathPrefix { get; set; } = string.Empty;
+    public string GatewayPathPrefix { get; set; } = string.Empty;
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
 }
 
