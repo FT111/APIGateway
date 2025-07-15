@@ -34,7 +34,8 @@ public static class PluginLoader
                 McMaster.NETCore.Plugins.PluginLoader.CreateFromAssemblyFile(
                     pluginDll,
                     sharedTypes: new[] { typeof(IPlugin), typeof(GatewayPluginContract.IRequestProcessor), typeof( GatewayPluginContract.IRequestForwarder) },
-                    isUnloadable: true
+                    isUnloadable: true,
+                    configure: config => config.EnableHotReload = true
                 ));
         }
         

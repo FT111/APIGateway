@@ -44,21 +44,9 @@ public class TestConfigProvider : IConfigurationsProvider
     public async Task InitialiseAsync(PluginManager pluginManager, IStore store)
     {
 
-        var services = store.GetPipeConfigRecipeAsync();
         _store = store;
         _pluginManager = pluginManager;
-        _AddProcessorFromRegistryIfAvailable(
-            "TestPlugin1.0.0/TestPreProcessor",
-            0,
-            _globalConfiguration.PreProcessors,
-            pluginManager.Registrar
-            );
-        _AddProcessorFromRegistryIfAvailable(
-            "TestPlugin1.0.0/TestPostProcessor",
-            0,
-            _globalConfiguration.PostProcessors,
-            pluginManager.Registrar
-            );
+
         
         Console.WriteLine("TestConfigProvider initialised.");
         
@@ -74,7 +62,7 @@ public class TestConfigProvider : IConfigurationsProvider
         });
     }
     
-    public Task<PipeConfiguration> GetPipeConfigsAsync(string? endpoint = null)
+    public Task<PipeConfiguration> GetPipeConfigAsync(string? endpoint = null)
     {
         if (_store == null || _pluginManager == null)
         {
@@ -100,15 +88,22 @@ public class TestConfigProvider : IConfigurationsProvider
         
         foreach (var serviceIdentifier in pipeRecipe.ServiceList)
         {
-            var type = _pluginManager.GetServiceTypeByIdentifier(serviceIdentifier);
-            switch (type)
+            try
             {
-                case ServiceTypes.PreProcessor:
-                    _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, pipe.PreProcessors, _pluginManager.Registrar);
-                    break;
-                case ServiceTypes.PostProcessor:
-                    _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, pipe.PostProcessors, _pluginManager.Registrar);
-                    break;
+                var type = _pluginManager.GetServiceTypeByIdentifier(serviceIdentifier);
+                switch (type)
+                {
+                    case ServiceTypes.PreProcessor:
+                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, pipe.PreProcessors, _pluginManager.Registrar);
+                        break;
+                    case ServiceTypes.PostProcessor:
+                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, pipe.PostProcessors, _pluginManager.Registrar);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to load service '{serviceIdentifier}': {e.Message}");
             }
         }
         
@@ -137,7 +132,7 @@ public class TestConfigProvider : IConfigurationsProvider
     }
     public Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(string? endpoint = null)
     {
-        return _store.GetAsync<Dictionary<string, Dictionary<string, string>>>(endpoint);
+        return _store.GetPluginConfigsAsync(endpoint);
     }
     public Task SetServiceConfigAsync(string scope, string key, string value, string? endpoint = null)
     {

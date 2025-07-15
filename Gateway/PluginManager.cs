@@ -15,6 +15,12 @@ public class PluginManager
 {
     private List<IPlugin> _plugins = [];
     internal readonly PluginServiceRegistrar Registrar = new();
+    
+    public ServiceTypes GetServiceTypeByIdentifier(string identifier)
+    {
+        var service = Registrar.GetServiceByName(identifier);
+        return service?.ServiceType ?? throw new KeyNotFoundException($"Service '{identifier}' not found.");
+    }
 
     public Task LoadPluginsAsync(string path)
     {
@@ -83,10 +89,8 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             .Select(s => (T)s.Instance);
     }
     
-    public ServiceContainer GetServiceByName(string name)
+    public ServiceContainer? GetServiceByName(string name)
     {
-        Console.WriteLine($"Retrieving service by name: {name}");
-        Console.WriteLine($"Available services: {string.Join(", ", _services.Keys)}");
         return _services[name];
         return _services.TryGetValue(name, out var serviceContainer) ? serviceContainer : throw new KeyNotFoundException($"Service '{name}' not found.");
     }
@@ -96,7 +100,6 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
     public void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService
     {
         var title = parentPlugin.GetManifest().Name + parentPlugin.GetManifest().Version + "/" + typeof(T).Name ?? "";
-        Console.WriteLine($"Registering service to registrar: {title} - {typeof(T).FullName} as {serviceType}");
         _services[title] = new ServiceContainer
         {
             Instance = service,
@@ -104,7 +107,8 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             
         };
         
-        Console.WriteLine($"Registered service: {typeof(T)} - {typeof(T).FullName} as {serviceType}");
+        Console.WriteLine($"Registered service: {title} of type {serviceType}");
+        
     }
 }
 }
