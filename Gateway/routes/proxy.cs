@@ -10,7 +10,7 @@ public static class Proxy
     public static async Task Init(this WebApplication app)
     {
         // Console.WriteLine(_getBaseConfig());
-        var store = new PostgresStore();
+        var store = new PostgresStore(app.Configuration);
         
         const string prefix = "/";
         const string targetUrl = "localhost:8000";
