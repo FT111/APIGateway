@@ -4,19 +4,22 @@ namespace Lecti;
 
 public class Selector : IRequestProcessor
 {
-    public async Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks, IScopedStore store)
+    public async Task ProcessAsync(IRequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
     {
         // Checks if the IP has already been given an A/B variation
         try
         {
-            var existingRecord = await store.GetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString());
+            var existingRecord =
+                await store.GetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()
+                    .ToString());
             context.TargetPathBase = existingRecord;
         }
         catch (KeyNotFoundException)
         {
             // If not, randomly assign one of the variations
             var random = new Random();
-            Console.WriteLine($"Assigning new Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress}");
+            Console.WriteLine(
+                $"Assigning new Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress}");
 
 
             List<string> availableVariations =
@@ -27,7 +30,12 @@ public class Selector : IRequestProcessor
             context.TargetPathBase = availableVariations[variation];
 
             // Store the assigned variation in the scoped store
-            await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", context.TargetPathBase);
+            async ValueTask Task(CancellationToken cancellationToken)
+            {
+                await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", context.TargetPathBase);
+            }
+
+            backgroundQueue.QueueTask(Task);
         }
     }
 }

@@ -8,11 +8,12 @@ namespace Lecti;
 /// </summary>
 public class Checker : IRequestProcessor
 {
-    public Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks, IScopedStore store)
+    public Task ProcessAsync(IRequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
     {
         // Reroute the request if the response is not successful
         Console.WriteLine($"Checking response status code: {context.Response.StatusCode} for request to {context.Request.Path}");
         if ((context.Response.StatusCode.ToString().StartsWith("2") ||
+             context.Response.StatusCode.ToString().StartsWith("4") ||
                context.Response.StatusCode.ToString().StartsWith("3")) && !context.IsForwardingFailed) return Task.CompletedTask;
         
         Console.WriteLine($"Response from {context.TargetPathBase} failed with status code {context.Response.StatusCode} and {context.IsForwardingFailed} fault. Checking for fallbacks...");
@@ -30,10 +31,12 @@ public class Checker : IRequestProcessor
             var random = new Random();
             var newVariation = availableVariations[random.Next(0, availableVariations.Count)];
 
-            store.SetAsync<string>(
-                context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
-                "text",
-                newVariation);
+            async ValueTask Task(CancellationToken cancellationToken)
+            {
+                await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", newVariation);
+            }
+
+            backgroundQueue.QueueTask(Task);
             context.TargetPathBase = newVariation;
             context.IsRestartRequested = true;
 

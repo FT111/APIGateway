@@ -85,6 +85,12 @@ public class RequestContext : IRequestContext
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
 }
 
+public interface IBackgroundQueue
+{
+    void QueueTask(Func<CancellationToken, ValueTask> task);
+    Task<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IService
 {
     // Marker interface for services
@@ -93,7 +99,7 @@ public interface IService
 public interface IRequestProcessor : IService
 {
     // With request context and a method to add a deferred task
-    Task ProcessAsync(IRequestContext context, List<Func<Task>> deferredTasks, IScopedStore store);
+    Task ProcessAsync(IRequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store);
 }
 
 public interface IRequestForwarder : IService

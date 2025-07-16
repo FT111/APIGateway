@@ -18,18 +18,21 @@ public class RequestPipeline
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
     private readonly IStore _store;
+    private readonly IBackgroundQueue _backgroundQueue;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         IConfigurationsProvider configManager,
-        IStore store)
+        IStore store,
+        IBackgroundQueue backgroundQueue)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
         _forwarder = forwarder;
         _configManager = configManager;
         _store = store;
+        _backgroundQueue = backgroundQueue;
     }
 
     public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -60,13 +63,11 @@ public class RequestPipeline
             UsePipeConfig(config);
         }
         
-        var deferredTasks = new List<Func<Task>>();
-        
         foreach (var processor in _preProcessors)
         {
             Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
             var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
-            await processor.Processor.ProcessAsync(context, deferredTasks, serviceStore);
+            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
             if (context.IsBlocked)
             {
                 return;
@@ -90,7 +91,7 @@ public class RequestPipeline
         {
             Console.WriteLine($"Processing post-processor: {processor.Identifier}");
             var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
-            await processor.Processor.ProcessAsync(context, deferredTasks, serviceStore);
+            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
             
             // Handle request operations
             
@@ -111,12 +112,6 @@ public class RequestPipeline
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
-
-        // Execute all deferred tasks after processing all processors
-        foreach (var deferredTask in deferredTasks)
-        {
-            await deferredTask();
-        }
     }
     
 }
@@ -126,6 +121,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
+    private IBackgroundQueue? _backgroundQueue = null;
     private IStore? _store = null;
     private IConfigurationsProvider? _configManager = null;
 
@@ -200,18 +196,29 @@ public class RequestPipelineBuilder
         _store = store;
         return this;
     }
+    
+    public RequestPipelineBuilder WithBackgroundQueue(IBackgroundQueue backgroundQueue)
+    {
+        if (backgroundQueue == null)
+        {
+            throw new ArgumentNullException(nameof(backgroundQueue), "Background queue cannot be null.");
+        }
+        
+        _backgroundQueue = backgroundQueue;
+        return this;
+    }
 
     public RequestPipeline Build()
     {
-        if (_configManager == null || _store == null)
+        if (_configManager == null || _store == null || _backgroundQueue == null)
         {
-            throw new InvalidOperationException("Without a config manager, a forwarder must be set before building the pipeline.");
+            throw new InvalidOperationException("All required components (config manager, store, background queue) must be set before building the pipeline.");
         }
         
         // Sort the processors by their order
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _store);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _store, _backgroundQueue);
     }
 }

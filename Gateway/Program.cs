@@ -20,7 +20,7 @@ namespace Gateway
 
             // app.UseHttpsRedirection();
             
-            await ApiRoutes.Init(app);
+            await Proxy.Init(app);
 
             app.Run();
         }
