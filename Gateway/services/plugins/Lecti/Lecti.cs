@@ -14,7 +14,7 @@ public class LectiPlugin : IPlugin
     private PluginManifest _manifest = new PluginManifest
     {
         Name = "Lecti",
-        Version = "0.1",
+        Version = 0.1,
         Description = "A/B testing plugin for Gateway",
         Author = "FT111",
     };

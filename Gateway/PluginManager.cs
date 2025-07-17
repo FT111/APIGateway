@@ -22,6 +22,41 @@ public class PluginManager
         return service?.ServiceType ?? throw new KeyNotFoundException($"Service '{identifier}' not found.");
     }
 
+
+    private void ResolveDependencies()
+    {
+        foreach (var plugin in _plugins)
+        {
+            var manifest = plugin.GetManifest();
+            if (manifest.Dependencies.Count == 0) continue;
+            
+            manifest.Dependencies?.ForEach(dep =>
+            {
+                // Check if the dependency is provided
+                if (_plugins.Any(p =>
+                        p.GetManifest().Name == dep.Name && dep.VersionCheck(p.GetManifest().Version)))
+                {
+                    // If the dependency is provided, set it as provided
+                    Console.WriteLine($"Dependency '{dep.Name}' found for plugin '{manifest.Name}'.");
+                    dep.IsProvided = true;
+                    return;
+                }
+                    
+                // If the dependency is optional, log a message and continue
+                if (dep.IsOptional)
+                {
+                    Console.WriteLine($"Optional dependency '{dep.Name}' not found for plugin '{manifest.Name}'. Continuing.");
+                    dep.IsProvided = false;
+                }
+                else
+                {
+                    // If the dependency is required, throw an exception
+                    throw new Exception($"Required dependency '{dep.Name}' not found for plugin '{manifest.Name}'.");
+                }
+            });
+        }
+    }
+
     public Task LoadPluginsAsync(string path)
     {
         List<McMaster.NETCore.Plugins.PluginLoader> pluginLoaders = PluginLoader.GetPluginLoaders(path);
@@ -42,45 +77,13 @@ public class PluginManager
                 plugin.ConfigureRegistrar(Registrar);
             }
         }
+        ResolveDependencies();
         return Task.CompletedTask;
     }
 
 public class PluginServiceRegistrar : IPluginServiceRegistrar
 {
     private readonly Dictionary<string, ServiceContainer> _services = new();
-    // private readonly Dictionary<string, Dictionary<string, string>> _configurations = new();
-    
-    // public void RegisterConfiguration(string pluginName, string key, string value)
-    // {
-    //     if (!_configurations.ContainsKey(pluginName))
-    //     {
-    //         _configurations[pluginName] = new Dictionary<string, string>();
-    //     }
-    //
-    //     _configurations[pluginName][key] = value;
-    // }
-    //
-    // public string? GetConfiguration(string pluginName, string key)
-    // {
-    //     if (_configurations.TryGetValue(pluginName, out var config) && config.TryGetValue(key, out var value))
-    //     {
-    //         return value;
-    //     }
-    //     return null;
-    // }
-    //
-    // public void UpdateConfigurationKey(IPlugin plugin, string key, string value)
-    // {
-    //     var pluginName = plugin.GetManifest().Name;
-    //     if (_configurations.ContainsKey(pluginName))
-    //     {
-    //         _configurations[pluginName][key] = value;
-    //         plugin.UpdateConfigKey(key, value);
-    //     } else
-    //     {
-    //         throw new KeyNotFoundException($"Configuration for plugin '{pluginName}' not found.");
-    //     }
-    // }
     
     public IEnumerable<T>  GetServicesByType<T>(ServiceTypes serviceType) where T : IService
     {
@@ -104,7 +107,6 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
         {
             Instance = service,
             ServiceType = serviceType
-            
         };
         
         Console.WriteLine($"Registered service: {title} of type {serviceType}");

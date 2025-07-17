@@ -54,9 +54,19 @@ public interface IScopedStore
 public class PluginManifest
 {
     public required string Name { get; init; }
-    public required string Version { get; init; } 
+    public required double Version { get; init; } 
     public required string Description { get; init; }
     public required string Author { get; init; }
+    public List<PluginDependency> Dependencies { get; init; } = [];
+}
+
+public class PluginDependency
+{
+    public required string Name { get; init; }
+    public required string Version { get; init; }
+    public required Func<double, bool> VersionCheck { get; init; }
+    public bool IsOptional { get; init; } = false;
+    public bool IsProvided { get; set; } = false;
 }
 
 public class RequestContext
