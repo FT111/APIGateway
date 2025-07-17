@@ -6,7 +6,7 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
     private readonly HttpClient _client = new HttpClient();
     
     
-    public async Task ForwardAsync(GatewayPluginContract.IRequestContext context)
+    public async Task ForwardAsync(GatewayPluginContract.RequestContext context)
     {
         var request = context.Request;
         var response = context.Response;

@@ -4,7 +4,7 @@ namespace Lecti;
 
 public class Selector : IRequestProcessor
 {
-    public async Task ProcessAsync(IRequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
+    public async Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
     {
         // Checks if the IP has already been given an A/B variation
         try

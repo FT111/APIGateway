@@ -8,13 +8,11 @@ namespace Lecti;
 /// </summary>
 public class Checker : IRequestProcessor
 {
-    public Task ProcessAsync(IRequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
+    public Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
     {
         // Reroute the request if the response is not successful
         Console.WriteLine($"Checking response status code: {context.Response.StatusCode} for request to {context.Request.Path}");
-        if ((context.Response.StatusCode.ToString().StartsWith("2") ||
-             context.Response.StatusCode.ToString().StartsWith("4") ||
-               context.Response.StatusCode.ToString().StartsWith("3")) && !context.IsForwardingFailed) return Task.CompletedTask;
+        if (context.Response.StatusCode.ToString()[0] != '5' && !context.IsForwardingFailed) return Task.CompletedTask;
         
         Console.WriteLine($"Response from {context.TargetPathBase} failed with status code {context.Response.StatusCode} and {context.IsForwardingFailed} fault. Checking for fallbacks...");
 

@@ -59,20 +59,7 @@ public class PluginManifest
     public required string Author { get; init; }
 }
 
-public interface IRequestContext
-{
-    HttpRequest Request { get; set; }
-    HttpResponse Response { get; set; }
-    bool IsBlocked { get; set; }
-    bool IsRestartRequested { get; set; }
-    bool IsForwardingFailed { get; set; }
-    uint RestartCount { get; set; }
-    string TargetPathBase { get; set; }
-    string GatewayPathPrefix { get; set; }
-    Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; }
-}
-
-public class RequestContext : IRequestContext
+public class RequestContext
 {
     public required HttpRequest Request { get; set; }
     public required HttpResponse Response { get; set; }
@@ -83,6 +70,7 @@ public class RequestContext : IRequestContext
     public required string TargetPathBase { get; set; }
     public string GatewayPathPrefix { get; set; } = string.Empty;
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> SharedPluginContext { get; set; } = new();
 }
 
 public interface IBackgroundQueue
@@ -99,12 +87,12 @@ public interface IService
 public interface IRequestProcessor : IService
 {
     // With request context and a method to add a deferred task
-    Task ProcessAsync(IRequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store);
+    Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store);
 }
 
 public interface IRequestForwarder : IService
 {
-    Task ForwardAsync(IRequestContext context);
+    Task ForwardAsync(RequestContext context);
 }
 
 public enum ServiceTypes
