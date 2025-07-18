@@ -17,7 +17,7 @@ public class TestConfigProvider : IConfigurationsProvider
     private PluginManager? _pluginManager;
     private readonly Dictionary<string, PipeConfiguration> _endpointConfigurations = new Dictionary<string, PipeConfiguration>();
 
-    private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, List<PipeProcessorContainer> processorList,
+    private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, ServiceFailurePolicies onFailure, List<PipeProcessorContainer> processorList,
         PluginManager.PluginServiceRegistrar registry)
     {
         try
@@ -32,6 +32,7 @@ public class TestConfigProvider : IConfigurationsProvider
             {
                 Processor = requestProcessor,
                 Order = order,
+                FailurePolicy = ServiceFailurePolicies.Ignore,
                 Identifier = serviceName
             });
         }
@@ -94,10 +95,10 @@ public class TestConfigProvider : IConfigurationsProvider
                 switch (type)
                 {
                     case ServiceTypes.PreProcessor:
-                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, pipe.PreProcessors, _pluginManager.Registrar);
+                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, ServiceFailurePolicies.Ignore, pipe.PreProcessors, _pluginManager.Registrar);
                         break;
                     case ServiceTypes.PostProcessor:
-                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, pipe.PostProcessors, _pluginManager.Registrar);
+                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, ServiceFailurePolicies.Ignore, pipe.PostProcessors, _pluginManager.Registrar);
                         break;
                 }
             }

@@ -23,6 +23,7 @@ public class PipeProcessorContainer
     public GatewayPluginContract.IRequestProcessor Processor { get; set; } = null!;
     public uint Order { get; set; } = 0;
     public bool IsEnabled { get; set; } = true;
+    public ServiceFailurePolicies FailurePolicy { get; set; } = ServiceFailurePolicies.Ignore;
     public string Identifier { get; set; } = string.Empty;
 }
 
@@ -110,6 +111,13 @@ public enum ServiceTypes
     PreProcessor,
     PostProcessor,
     Forwarder
+}
+
+public enum ServiceFailurePolicies
+{
+    Ignore,
+    Retry,
+    Block
 }
 
 public interface IPluginServiceRegistrar
