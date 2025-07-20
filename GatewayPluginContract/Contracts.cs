@@ -13,9 +13,15 @@ public class PipeConfiguration
     public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; }
 }
 
+public class PipeRecipeServiceContainer
+{
+    public required string Identifier { get; set; }
+    public required ServiceFailurePolicies FailurePolicy { get; set; }
+}
+
 public class PipeConfigurationRecipe
 {
-    public required List<string> ServiceList { get; set; }
+    public required List<PipeRecipeServiceContainer> ServiceList { get; set; }
 }
 
 public class PipeProcessorContainer
@@ -116,7 +122,8 @@ public enum ServiceTypes
 public enum ServiceFailurePolicies
 {
     Ignore,
-    Retry,
+    RetryThenBlock,
+    RetryThenIgnore,
     Block
 }
 

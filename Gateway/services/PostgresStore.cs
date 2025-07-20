@@ -1,3 +1,4 @@
+using System.Data;
 using GatewayPluginContract;
 using Npgsql;
 
@@ -73,12 +74,27 @@ public class PostgresStore : IStore
             {
                 ServiceList = [],
             };
-        var serviceList = new List<string>();
+        var serviceList = new List<PipeRecipeServiceContainer>();
         do
         {
             var test = await reader.GetColumnSchemaAsync();
             var service = reader.GetString(2) + reader.GetString(1) + "/" + reader.GetString(3);
-            serviceList.Add(service);
+            ServiceFailurePolicies failurePolicy;
+            try
+            {
+                failurePolicy = Enum.Parse<ServiceFailurePolicies>(reader.GetString("failurepolicy"));
+            }
+            catch (ArgumentException)
+            {
+                throw new Exceptions.MisconfiguredServiceException(
+                    $"Service {service} is misconfigured. Failure policy is not valid.");
+            }
+            var container = new PipeRecipeServiceContainer()
+            {
+                Identifier = service,
+                FailurePolicy = failurePolicy
+            };
+            serviceList.Add(container);
         } while (await reader.ReadAsync());
         
         return new PipeConfigurationRecipe
@@ -106,11 +122,27 @@ public class PostgresStore : IStore
             return await GetGlobalPipeConfigRecipeAsync();
         }
        
-        var serviceList = new List<string>();
+        var serviceList = new List<PipeRecipeServiceContainer>();
         do
         {
-            var service = reader.GetString(2) + reader.GetString(3) + "/" + reader.GetString(1);
-            serviceList.Add(service);
+            ServiceFailurePolicies failurePolicy;
+            try
+            {
+                failurePolicy = Enum.Parse<ServiceFailurePolicies>(reader.GetString("failurepolicy"));
+            }
+            catch (ArgumentException)
+            {
+                throw new Exceptions.MisconfiguredServiceException(
+                    $"Service {reader.GetString(2)} is misconfigured. Failure policy is not valid.");
+            }
+
+            var container = new PipeRecipeServiceContainer()
+            {
+                Identifier = reader.GetString(2) + reader.GetString(1) + "/" + reader.GetString(3),
+                FailurePolicy = failurePolicy
+            };
+            
+            serviceList.Add(container);
         } while (await reader.ReadAsync());
         
         return new PipeConfigurationRecipe

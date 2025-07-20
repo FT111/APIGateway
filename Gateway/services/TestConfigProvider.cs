@@ -87,24 +87,24 @@ public class TestConfigProvider : IConfigurationsProvider
             Forwarder = new HttpRequestForwarder()
         };
         
-        foreach (var serviceIdentifier in pipeRecipe.ServiceList)
+        foreach (var serviceRecipeContainer in pipeRecipe.ServiceList)
         {
             try
             {
-                var type = _pluginManager.GetServiceTypeByIdentifier(serviceIdentifier);
+                var type = _pluginManager.GetServiceTypeByIdentifier(serviceRecipeContainer.Identifier);
                 switch (type)
                 {
                     case ServiceTypes.PreProcessor:
-                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, ServiceFailurePolicies.Ignore, pipe.PreProcessors, _pluginManager.Registrar);
+                        _AddProcessorFromRegistryIfAvailable(serviceRecipeContainer.Identifier, 0, serviceRecipeContainer.FailurePolicy, pipe.PreProcessors, _pluginManager.Registrar);
                         break;
                     case ServiceTypes.PostProcessor:
-                        _AddProcessorFromRegistryIfAvailable(serviceIdentifier, 0, ServiceFailurePolicies.Ignore, pipe.PostProcessors, _pluginManager.Registrar);
+                        _AddProcessorFromRegistryIfAvailable(serviceRecipeContainer.Identifier, 0, serviceRecipeContainer.FailurePolicy, pipe.PostProcessors, _pluginManager.Registrar);
                         break;
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to load service '{serviceIdentifier}': {e.Message}");
+                Console.WriteLine($"Failed to load service '{serviceRecipeContainer}': {e.Message}");
             }
         }
         

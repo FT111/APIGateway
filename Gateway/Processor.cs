@@ -40,6 +40,58 @@ public class RequestPipeline
         _forwarder = forwarder;
     }
 
+    private async Task UseProcessor(PipeProcessorContainer processor, GatewayPluginContract.RequestContext context)
+    {
+        var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
+        try
+        {
+            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
+        }
+        catch (Exception ex)
+        {
+            // Handle processor failure based on its failure policy
+            switch (processor.FailurePolicy)
+            {
+                case ServiceFailurePolicies.Ignore:
+                    Console.WriteLine($"Ignoring failure in processor {processor.Identifier}: {ex.Message}");
+                    break;
+                case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
+                    Console.WriteLine($"Retrying processor {processor.Identifier} due to failure: {ex.Message}");
+                    context.IsRestartRequested = true;
+                    break;
+                case ServiceFailurePolicies.RetryThenBlock:
+                    Console.WriteLine($"Blocking pipeline as  {processor.Identifier} failed. failure: {ex.Message}");
+                    context.IsBlocked = true;
+                    break;
+                case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
+                    Console.WriteLine($"Retrying processor {processor.Identifier} due to failure: {ex.Message}");
+                    context.IsRestartRequested = true;
+                    break;
+                case ServiceFailurePolicies.Block:
+                    Console.WriteLine($"Blocking pipeline as {processor.Identifier} failed. failure: {ex.Message}");
+                    context.IsBlocked = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    private async Task HandleContextRequests(GatewayPluginContract.RequestContext context, HttpContext httpContext)
+    {
+        if (context.IsBlocked)
+        {
+            throw new Exceptions.PipelineBlockedException("The pipeline has been blocked by a processor.");
+        }
+        if (context is { IsRestartRequested: true, RestartCount: < 3 })
+        {
+            Console.WriteLine("Restart requested, reprocessing the pipeline.");
+            context.RestartCount++;
+            await ProcessAsync(context, httpContext);
+            throw new Exceptions.PipelineEndedException("Pipeline processing gracefully restarted recursively due to request.");
+        }
+    }
+
     private void UsePipeConfig(PipeConfiguration config)
     {
         _preProcessors = config.PreProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
@@ -66,19 +118,8 @@ public class RequestPipeline
         foreach (var processor in _preProcessors)
         {
             Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
-            var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
-            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
-            if (context.IsBlocked)
-            {
-                return;
-            }
-            if (context is { IsRestartRequested: true, RestartCount: < 3 })
-            {
-                Console.WriteLine("Restart requested, reprocessing the pipeline.");
-                context.RestartCount++;
-                await ProcessAsync(context, httpContext);
-                return;
-            }
+            await UseProcessor(processor, context);
+            await HandleContextRequests(context, httpContext);
         }
         
         if (_forwarder == null)
@@ -90,22 +131,8 @@ public class RequestPipeline
         foreach (var processor in _postProcessors)
         {
             Console.WriteLine($"Processing post-processor: {processor.Identifier}");
-            var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
-            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
-            
-            // Handle request operations
-            
-            if (context.IsBlocked)
-            {
-                return;
-            }
-            if (context is { IsRestartRequested: true, RestartCount: < 3 })
-            {
-                Console.WriteLine("Restart requested, reprocessing the pipeline.");
-                context.RestartCount++;
-                await ProcessAsync(context, httpContext);
-                return;
-            }
+            await UseProcessor(processor, context);
+            await HandleContextRequests(context, httpContext);
         }
 
         if (context.IsForwardingFailed)
