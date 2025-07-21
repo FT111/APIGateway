@@ -101,20 +101,8 @@ public class RequestPipeline
 
     public async Task ProcessAsync(GatewayPluginContract.RequestContext context, HttpContext httpContext)
     {
-        // Sets ephemeral state to initial values
-        context.IsRestartRequested = false;
-        context.IsForwardingFailed = false;
-        
-        if (_configManager != null)
-        {
-            // Load global configuration if available
-            context.PluginConfiguration =
-                await _configManager.GetServiceConfigsAsync(context.Request.Path);
-            
-            var config = await _configManager.GetPipeConfigAsync(context.Request.Path);
-            UsePipeConfig(config);
-        }
-        
+        await SetupPipeline(context);
+
         foreach (var processor in _preProcessors)
         {
             Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
@@ -140,7 +128,23 @@ public class RequestPipeline
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
     }
-    
+
+    private async Task SetupPipeline(RequestContext context)
+    {
+        // Sets ephemeral state to initial values
+        context.IsRestartRequested = false;
+        context.IsForwardingFailed = false;
+        
+        if (_configManager != null)
+        {
+            // Load global configuration if available
+            context.PluginConfiguration =
+                await _configManager.GetServiceConfigsAsync(context.Request.Path);
+            
+            var config = await _configManager.GetPipeConfigAsync(context.Request.Path);
+            UsePipeConfig(config);
+        }
+    }
 }
 
 public class RequestPipelineBuilder
