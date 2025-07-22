@@ -1,6 +1,7 @@
 using System.Data;
 using GatewayPluginContract;
 using Npgsql;
+using Npgsql.Schema;
 
 namespace Gateway.services;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL;
 
 public class PostgresStore : IStore
 {
+    private readonly NpgsqlDataSourceBuilder _dbFactory;
     private readonly NpgsqlDataSource _db;
     public PostgresStore(IConfiguration config)
     {
@@ -15,8 +17,11 @@ public class PostgresStore : IStore
                                throw new InvalidOperationException("Connection string 'Postgres' not found in configuration.");
         
         // Connects to a database using Postgres
-        _db = NpgsqlDataSource.Create(connectionString);
-        if (!_db.OpenConnection().CanCreateBatch)
+        _dbFactory = new NpgsqlDataSourceBuilder(connectionString);
+        _dbFactory.MapEnum<ServiceFailurePolicies>("public.servicefailurepolicies");
+        _db = _dbFactory.Build();
+
+        if(!_db.OpenConnection().CanCreateBatch)
         {
             throw new InvalidOperationException("Failed to connect to the database.");
         }
@@ -82,12 +87,13 @@ public class PostgresStore : IStore
             ServiceFailurePolicies failurePolicy;
             try
             {
-                failurePolicy = Enum.Parse<ServiceFailurePolicies>(reader.GetString("failurepolicy"));
+                failurePolicy = ParseFailurePolicy(reader.GetString("failure_policy"));
             }
-            catch (ArgumentException)
+            catch (Exception e)
             {
+                Console.WriteLine($"Failed to parse failure policy for service {service}: {e.Message}");
                 throw new Exceptions.MisconfiguredServiceException(
-                    $"Service {service} is misconfigured. Failure policy is not valid.");
+                    $"Service {service} is misconfigured. Failure policy is not valid. {e.Message}");
             }
             var container = new PipeRecipeServiceContainer()
             {
@@ -125,17 +131,7 @@ public class PostgresStore : IStore
         var serviceList = new List<PipeRecipeServiceContainer>();
         do
         {
-            ServiceFailurePolicies failurePolicy;
-            try
-            {
-                failurePolicy = Enum.Parse<ServiceFailurePolicies>(reader.GetString("failurepolicy"));
-            }
-            catch (ArgumentException)
-            {
-                throw new Exceptions.MisconfiguredServiceException(
-                    $"Service {reader.GetString(2)} is misconfigured. Failure policy is not valid.");
-            }
-
+            var failurePolicy = ParseFailurePolicy(reader.GetString("failure_policy"));            
             var container = new PipeRecipeServiceContainer()
             {
                 Identifier = reader.GetString(2) + reader.GetString(1) + "/" + reader.GetString(3),
@@ -151,7 +147,22 @@ public class PostgresStore : IStore
         };
 
     }
-    
+
+    private static ServiceFailurePolicies ParseFailurePolicy(string failurePolicyString)
+    {
+        var failurePolicy = failurePolicyString switch
+        {
+            "Ignore" => ServiceFailurePolicies.Ignore,
+            "RetryThenBlock" => ServiceFailurePolicies.RetryThenBlock,
+            "RetryThenIgnore" => ServiceFailurePolicies.RetryThenIgnore,
+            "Block" => ServiceFailurePolicies.Block,
+            _ => throw new Exceptions.MisconfiguredServiceException(
+                $"Service is misconfigured. Failure policy is not valid.")
+        };
+
+        return failurePolicy;
+    }
+
     public async Task<Dictionary<string, Dictionary<string, string>>> GetPluginConfigsAsync(string? endpoint = null)
     {
         Guid endpointId = Guid.Empty;
