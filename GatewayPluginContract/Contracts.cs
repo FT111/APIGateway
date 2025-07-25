@@ -1,16 +1,17 @@
 ﻿using System.IO.Pipelines;
+using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-
 public class PipeConfiguration
 {
     public required List<PipeProcessorContainer> PreProcessors { get; set; } 
     public required List<PipeProcessorContainer> PostProcessors { get; set; }
     public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; }
+    public Endpoint? Endpoint { get; init; }
 }
 
 public class PipeRecipeServiceContainer
@@ -33,28 +34,22 @@ public class PipeProcessorContainer
     public string Identifier { get; set; } = string.Empty;
 }
 
-public interface IStore
+public interface IDataRepository<T> where T : GatewayModel
 {
-    /// <summary>
-    /// Interface for a simple key-value store.
-    /// Implementations should provide a persistent storage mechanism.
-    /// </summary>
-    Task<T> GetAsync<T>(string key, string? scope = null) where T : notnull;
-    Task SetAsync<T>(string key, T value, string type, string? scope = null) where T : notnull;
-    Task RemoveAsync(string key, string? scope = null);
-    
-    Task<Dictionary<string, Dictionary<string, string>>> GetPluginConfigsAsync(string? endpoint = null);
-    
-    Task<PipeConfigurationRecipe> GetPipeConfigRecipeAsync(string? endpoint = null);
-    
-    
+    Task<T?> GetAsync(string key);
+    Task AddAsync(T model);
+    Task RemoveAsync(string key);
+    Task UpdateAsync(T model);
 }
 
-public interface IScopedStore
+public interface IRepoFactory
 {
-    Task<T> GetAsync<T>(string key) where T : notnull;
-    Task SetAsync<T>(string key, string type, T value) where T : notnull;
-    Task RemoveAsync(string key);
+    IDataRepository<T> GetRepo<T>() where T : GatewayModel;
+}
+
+public abstract class Store(IConfiguration configuration)
+{
+    public abstract IRepoFactory GetRepoFactory();
 }
 
 
@@ -96,6 +91,28 @@ public interface IBackgroundQueue
     Task<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken cancellationToken = default);
 }
 
+public class Event
+{
+    public required string Title { get; init; }
+    public required string Description { get; init; }
+    public required bool IsWarning { get; init; } = false;
+    public required Endpoint Endpoint { get; init; }
+    public required string ServiceIdentifier { get; init; }
+    public required string Type { get; init; }
+    public string? Data { get; init; }
+}
+
+public interface IEvents
+{
+    public void RegisterEvent(Event eventData);
+}
+
+public class ServiceToolkit
+{
+    public required IBackgroundQueue BackgroundQueue { get; init; }
+    public required IEvents Events { get; init; }
+}
+
 public interface IService
 {
     // Marker interface for services
@@ -104,7 +121,7 @@ public interface IService
 public interface IRequestProcessor : IService
 {
     // With request context and a method to add a deferred task
-    Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store);
+    Task ProcessAsync(RequestContext context, ServiceToolkit services);
 }
 
 public interface IRequestForwarder : IService
