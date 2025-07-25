@@ -20,6 +20,7 @@ public class Endpoint : GatewayModel
     public required string TargetHost { get; set; }
     public required string TargetScheme { get; set; }
     public Pipe Pipe { get; set; } = null!;
+    public ICollection<PluginConfig> Configs { get; set; } = new List<PluginConfig>();
 }
 
 public class PluginData : GatewayModel
@@ -36,6 +37,7 @@ public class PipeService : GatewayModel
     public required string PluginName { get; set; }
     public required string PluginVersion { get; set; }
     public required string ServiceName { get; set; }
+    public required int Order { get; set; }
     public ServiceFailurePolicies FailurePolicy { get; set; }
     public Guid? EndpointId { get; set; }
     public Endpoint? Endpoint { get; set; }

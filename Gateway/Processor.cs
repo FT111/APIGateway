@@ -17,21 +17,21 @@ public class RequestPipeline
     private List<PipeProcessorContainer> _postProcessors;
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
-    private readonly IStore _store;
+    private readonly IRepoFactory _repoFactory;
     private readonly IBackgroundQueue _backgroundQueue;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         IConfigurationsProvider configManager,
-        IStore store,
+        IRepoFactory repoFactory,
         IBackgroundQueue backgroundQueue)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
         _forwarder = forwarder;
         _configManager = configManager;
-        _store = store;
+        _repoFactory = repoFactory;
         _backgroundQueue = backgroundQueue;
     }
 
@@ -40,35 +40,39 @@ public class RequestPipeline
         _forwarder = forwarder;
     }
 
-    private async Task UseProcessor(PipeProcessorContainer processor, GatewayPluginContract.RequestContext context)
+    private async Task UseProcessor(PipeProcessorContainer container, GatewayPluginContract.RequestContext context)
     {
-        var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
+        var tools = new ServiceToolkit
+        {
+            BackgroundQueue = _backgroundQueue,
+            RepoFactory = _repoFactory,
+        };
         try
         {
-            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
+            await container.Processor.ProcessAsync(context, tools);
         }
         catch (Exception ex)
         {
             // Handle processor failure based on its failure policy
-            switch (processor.FailurePolicy)
+            switch (container.FailurePolicy)
             {
                 case ServiceFailurePolicies.Ignore:
-                    Console.WriteLine($"Ignoring failure in processor {processor.Identifier}: {ex.Message}");
+                    Console.WriteLine($"Ignoring failure in processor {container.Identifier}: {ex.Message}");
                     break;
                 case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {processor.Identifier} due to failure: {ex.Message}");
+                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.RetryThenBlock:
-                    Console.WriteLine($"Blocking pipeline as  {processor.Identifier} failed. failure: {ex.Message}");
+                    Console.WriteLine($"Blocking pipeline as  {container.Identifier} failed. failure: {ex.Message}");
                     context.IsBlocked = true;
                     break;
                 case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {processor.Identifier} due to failure: {ex.Message}");
+                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.Block:
-                    Console.WriteLine($"Blocking pipeline as {processor.Identifier} failed. failure: {ex.Message}");
+                    Console.WriteLine($"Blocking pipeline as {container.Identifier} failed. failure: {ex.Message}");
                     context.IsBlocked = true;
                     break;
                 default:
@@ -153,7 +157,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
     private IBackgroundQueue? _backgroundQueue = null;
-    private IStore? _store = null;
+    private IRepoFactory? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
 
     public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -222,9 +226,9 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithStore(IStore store)
+    public RequestPipelineBuilder WithRepoProvider(IRepoFactory repoFactory)
     {
-        _store = store;
+        _repoFactory = repoFactory;
         return this;
     }
     
@@ -241,7 +245,7 @@ public class RequestPipelineBuilder
 
     public RequestPipeline Build()
     {
-        if (_configManager == null || _store == null || _backgroundQueue == null)
+        if (_configManager == null || _repoFactory == null || _backgroundQueue == null)
         {
             throw new InvalidOperationException("All required components (config manager, store, background queue) must be set before building the pipeline.");
         }
@@ -250,6 +254,6 @@ public class RequestPipelineBuilder
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _store, _backgroundQueue);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue);
     }
 }

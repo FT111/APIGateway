@@ -10,7 +10,8 @@ public static class Proxy
     public static async Task Init(this WebApplication app)
     {
         // Console.WriteLine(_getBaseConfig());
-        var store = new PostgresStore(app.Configuration);
+        var store = new EfCorePostgresStore(app.Configuration);
+        var repoFactory = store.GetRepoFactory();
         
         const string prefix = "/";
         const string targetUrl = "localhost:8000";
@@ -24,12 +25,12 @@ public static class Proxy
         var pluginManager = new PluginManager();
         await pluginManager.LoadPluginsAsync("services/plugins");
 
-        var serviceConfigProvider = new TestConfigProvider();
-        await serviceConfigProvider.InitialiseAsync(pluginManager, store);
+        var serviceConfigProvider = new ConfigProvider();
+        await serviceConfigProvider.InitialiseAsync(pluginManager, repoFactory);
         
         var requestPipeline = new RequestPipelineBuilder()
             .WithConfigProvider(serviceConfigProvider)
-            .WithStore(store)
+            .WithRepoProvider(repoFactory)
             .WithBackgroundQueue(backgroundQueue)
             .Build();
         
