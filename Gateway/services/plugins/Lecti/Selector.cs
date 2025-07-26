@@ -4,15 +4,15 @@ namespace Lecti;
 
 public class Selector : IRequestProcessor
 {
-    public async Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
+    public async Task ProcessAsync(RequestContext context, ServiceContext stk)
     {
         // Checks if the IP has already been given an A/B variation
         try
         {
             var existingRecord =
-                await store.GetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()
-                    .ToString());
-            context.TargetPathBase = existingRecord;
+                await stk.RepoFactory.GetRepo<PluginData>().GetAsync(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()
+                    .ToString(), stk.Identity.OriginManifest.Name) ?? throw new KeyNotFoundException("No existing record found for the IP address.");
+            context.TargetPathBase = existingRecord.Value;
         }
         catch (KeyNotFoundException)
         {
@@ -32,10 +32,17 @@ public class Selector : IRequestProcessor
             // Store the assigned variation in the scoped store
             async ValueTask Task(CancellationToken cancellationToken)
             {
-                await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", context.TargetPathBase);
+                var data = new PluginData
+                {
+                    Key = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
+                    Value = context.TargetPathBase,
+                    Namespace = stk.Identity.OriginManifest.Name,
+                };
+                // await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", context.TargetPathBase);
+                await stk.RepoFactory.GetRepo<PluginData>().UpdateAsync(data);
             }
 
-            backgroundQueue.QueueTask(Task);
+            stk.DeferredTasks.QueueTask(Task);
         }
     }
 }

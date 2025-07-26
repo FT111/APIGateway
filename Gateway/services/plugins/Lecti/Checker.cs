@@ -8,7 +8,7 @@ namespace Lecti;
 /// </summary>
 public class Checker : IRequestProcessor
 {
-    public Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
+    public Task ProcessAsync(RequestContext context, ServiceContext stk)
     {
         // Reroute the request if the response is not successful
         Console.WriteLine($"Checking response status code: {context.Response.StatusCode} for request to {context.Request.Path}");
@@ -31,10 +31,16 @@ public class Checker : IRequestProcessor
 
             async ValueTask Task(CancellationToken cancellationToken)
             {
-                await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", newVariation);
+                var data = new PluginData
+                {
+                    Key = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? throw new ArgumentNullException(),
+                    Value = newVariation,
+                    Namespace = stk.Identity.OriginManifest.Name,
+                };
+                await stk.RepoFactory.GetRepo<PluginData>().UpdateAsync(data);
             }
 
-            backgroundQueue.QueueTask(Task);
+            stk.DeferredTasks.QueueTask(Task);
             context.TargetPathBase = newVariation;
             context.IsRestartRequested = true;
 

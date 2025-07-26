@@ -1,10 +1,11 @@
 using GatewayPluginContract;
+using Endpoint = GatewayPluginContract.Endpoint;
 
 namespace Gateway.services;
 using System.Collections.Generic;
 
 
-public class TestConfigProvider : IConfigurationsProvider
+public class ConfigProvider : IConfigurationsProvider
 {
     private PipeConfiguration _globalConfiguration = new PipeConfiguration
     {
@@ -13,7 +14,7 @@ public class TestConfigProvider : IConfigurationsProvider
         Forwarder = new HttpRequestForwarder()
     };
     
-    private IStore? _store;
+    private IRepoFactory? _repoFactory;
     private PluginManager? _pluginManager;
     private readonly Dictionary<string, PipeConfiguration> _endpointConfigurations = new Dictionary<string, PipeConfiguration>();
 
@@ -23,14 +24,14 @@ public class TestConfigProvider : IConfigurationsProvider
         try
         {
             // Attempt to get the service by name from the registry
-            var service = registry.GetServiceByName(serviceName);
+            var service = registry.GetServiceByName<GatewayPluginContract.IRequestProcessor>(serviceName);
             // Check if the service is null or not loaded - if so, skip it. (In the future, plugin dependencies can be used to ensure the service is loaded)
             if (service?.Instance is not GatewayPluginContract.IRequestProcessor requestProcessor) return;
             
             // Add the processor to the list with the specified order
             processorList.Add(new PipeProcessorContainer
             {
-                Processor = requestProcessor,
+                Processor = service,
                 Order = order,
                 FailurePolicy = ServiceFailurePolicies.Ignore,
                 Identifier = serviceName
@@ -42,10 +43,10 @@ public class TestConfigProvider : IConfigurationsProvider
         }
     }
     
-    public async Task InitialiseAsync(PluginManager pluginManager, IStore store)
+    public async Task InitialiseAsync(PluginManager pluginManager, IRepoFactory repoFactory)
     {
 
-        _store = store;
+        _repoFactory = repoFactory;
         _pluginManager = pluginManager;
 
         
@@ -65,15 +66,29 @@ public class TestConfigProvider : IConfigurationsProvider
     
     public Task<PipeConfiguration> GetPipeConfigAsync(string? endpoint = null)
     {
-        if (_store == null || _pluginManager == null)
+        if (_repoFactory == null || _pluginManager == null)
         {
             return Task.FromResult(_globalConfiguration);
         }
 
-        PipeConfigurationRecipe pipeRecipe;
+        ICollection<PipeService>? services;
         try
         {
-            pipeRecipe = _store.GetPipeConfigRecipeAsync(endpoint).Result;
+            var endpoints = _repoFactory.GetRepo<Endpoint>();
+            if (endpoint == null)
+            {
+                // If no endpoint is specified, return the global pipe configuration
+                services = _repoFactory.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.FirstOrDefault()?.Services;
+            }
+            else
+            {
+                // If an endpoint is specified, get the pipe configuration for that endpoint
+                var ep = endpoints.QueryAsync(e => e.Target.Scheme + e.Target.Host + e.Target.Path == endpoint).Result
+                    .First();
+
+                services = ep.Pipe.Services;
+            }
+            
         }
         catch (Exception e)
         {
@@ -87,28 +102,31 @@ public class TestConfigProvider : IConfigurationsProvider
             Forwarder = new HttpRequestForwarder()
         };
         
-        foreach (var serviceRecipeContainer in pipeRecipe.ServiceList)
+        foreach (var service in services ?? [])
         {
             try
             {
-                var type = _pluginManager.GetServiceTypeByIdentifier(serviceRecipeContainer.Identifier);
+                var identifier = service.PluginTitle + service.PluginVersion + "/" + service.ServiceTitle;
+                var type = _pluginManager.GetServiceTypeByIdentifier(identifier);
                 switch (type)
                 {
                     case ServiceTypes.PreProcessor:
-                        _AddProcessorFromRegistryIfAvailable(serviceRecipeContainer.Identifier, 0, serviceRecipeContainer.FailurePolicy, pipe.PreProcessors, _pluginManager.Registrar);
+                        _AddProcessorFromRegistryIfAvailable(identifier, 0, service.FailurePolicy, pipe.PreProcessors, _pluginManager.Registrar);
                         break;
                     case ServiceTypes.PostProcessor:
-                        _AddProcessorFromRegistryIfAvailable(serviceRecipeContainer.Identifier, 0, serviceRecipeContainer.FailurePolicy, pipe.PostProcessors, _pluginManager.Registrar);
+                        _AddProcessorFromRegistryIfAvailable(identifier, 0, service.FailurePolicy, pipe.PostProcessors, _pluginManager.Registrar);
                         break;
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to load service '{serviceRecipeContainer}': {e.Message}");
+                Console.WriteLine($"Failed to load service '{service}': {e.Message}");
             }
         }
         
-        Console.WriteLine($"Loaded pipe configuration for endpoint '{endpoint ?? "global"}' with {pipeRecipe.ServiceList.Count} services ");
+        Console.WriteLine($"Loaded pipe configuration for endpoint '{endpoint ?? "global"}' with {
+            pipe.PreProcessors.Count + pipe.PostProcessors.Count
+        } services ");
         return Task.FromResult(pipe);
     }
     
@@ -133,7 +151,38 @@ public class TestConfigProvider : IConfigurationsProvider
     }
     public Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(string? endpoint = null)
     {
-        return _store.GetPluginConfigsAsync(endpoint);
+        if (_repoFactory == null)
+        {
+            throw new InvalidOperationException("Repository factory is not initialized.");
+        }
+
+        // Retrieve the configs, either from the specified endpoint or from the global pipe
+        ICollection<PluginConfig>? configs;
+        if (endpoint == null)
+        {
+            configs = _repoFactory.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true ).Result.FirstOrDefault()?.Configs;
+        }
+        else
+        {
+            configs = _repoFactory.GetRepo<Endpoint>().QueryAsync(e => e.Target.Scheme + e.Target.Host + e.Target.Path == endpoint).Result.FirstOrDefault()?.Pipe.Configs ?? 
+                _repoFactory.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.FirstOrDefault()?.Configs;
+        }
+        
+        if (configs == null || configs.Count == 0)
+        {
+            return Task.FromResult(new Dictionary<string, Dictionary<string, string>>());
+        }
+        // Convert the collection of PluginConfig to an indexed dictionary
+        var result = new Dictionary<string, Dictionary<string, string>>();
+        foreach (var config in configs)
+        {
+            if (!result.ContainsKey(config.Namespace))
+            {
+                result[config.Namespace] = new Dictionary<string, string>();
+            }
+            result[config.Namespace][config.Key] = config.Value;
+        }
+        return Task.FromResult(result);
     }
     public Task SetServiceConfigAsync(string scope, string key, string value, string? endpoint = null)
     {

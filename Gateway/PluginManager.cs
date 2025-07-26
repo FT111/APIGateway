@@ -3,14 +3,6 @@ using GatewayPluginContract;
 namespace Gateway;
 
 
-public class ServiceContainer
-{
-    public required IService  Instance { get; set; }
-    public required ServiceTypes ServiceType { get; set; }
-    // public required Dictionary<string, string> PluginConfiguration { get; set; }
-}
-
-
 public class PluginManager
 {
     private List<IPlugin> _plugins = [];
@@ -18,7 +10,7 @@ public class PluginManager
     
     public ServiceTypes GetServiceTypeByIdentifier(string identifier)
     {
-        var service = Registrar.GetServiceByName(identifier);
+        var service = Registrar.GetServiceByName<IService>(identifier);
         return service?.ServiceType ?? throw new KeyNotFoundException($"Service '{identifier}' not found.");
     }
 
@@ -83,7 +75,7 @@ public class PluginManager
 
 public class PluginServiceRegistrar : IPluginServiceRegistrar
 {
-    private readonly Dictionary<string, ServiceContainer> _services = new();
+    private readonly Dictionary<string, ServiceContainer<IService>> _services = new();
     
     public IEnumerable<T>  GetServicesByType<T>(ServiceTypes serviceType) where T : IService
     {
@@ -92,10 +84,17 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             .Select(s => (T)s.Instance);
     }
     
-    public ServiceContainer? GetServiceByName(string name)
+    public ServiceContainer<T> GetServiceByName<T>(string name) where T : IService
+
     {
-        return _services[name];
-        return _services.TryGetValue(name, out var serviceContainer) ? serviceContainer : throw new KeyNotFoundException($"Service '{name}' not found.");
+        if (_services.TryGetValue(name, out var serviceContainer) && serviceContainer.Instance is T service)
+            return new ServiceContainer<T>
+            {
+                Instance = service,
+                ServiceType = serviceContainer.ServiceType,
+                Identity = serviceContainer.Identity
+            };
+        throw new KeyNotFoundException($"Service '{name}' not found.");
     }
     
 
@@ -103,10 +102,16 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
     public void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService
     {
         var title = parentPlugin.GetManifest().Name + parentPlugin.GetManifest().Version + "/" + typeof(T).Name ?? "";
-        _services[title] = new ServiceContainer
+        _services[title] = new ServiceContainer<IService>
         {
             Instance = service,
-            ServiceType = serviceType
+            ServiceType = serviceType,
+            Identity = new ServiceIdentity
+            {
+                Identifier = title,
+                OriginManifest = parentPlugin.GetManifest()
+            }
+            
         };
         
         Console.WriteLine($"Registered service: {title} of type {serviceType}");
