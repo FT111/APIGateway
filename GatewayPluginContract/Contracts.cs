@@ -14,20 +14,31 @@ public class PipeConfiguration
     public Endpoint? Endpoint { get; init; }
 }
 
-public class PipeRecipeServiceContainer
+// public class PipeRecipeServiceContainer
+// {
+//     public required string Identifier { get; set; }
+//     public required ServiceFailurePolicies FailurePolicy { get; set; }
+// }
+
+// public class PipeConfigurationRecipe
+// {
+//     public required List<PipeRecipeServiceContainer> ServiceList { get; set; }
+// }
+
+
+public class ServiceContainer<T> where T : IService
+
 {
-    public required string Identifier { get; set; }
-    public required ServiceFailurePolicies FailurePolicy { get; set; }
+    public required T Instance { get; set; }
+    public required ServiceTypes ServiceType { get; set; }
+    public required ServiceIdentity Identity { get; set; }
+    // public required Dictionary<string, string> PluginConfiguration { get; set; }
 }
 
-public class PipeConfigurationRecipe
-{
-    public required List<PipeRecipeServiceContainer> ServiceList { get; set; }
-}
 
 public class PipeProcessorContainer
 {
-    public GatewayPluginContract.IRequestProcessor Processor { get; set; } = null!;
+    public ServiceContainer<IRequestProcessor> Processor { get; set; } = null!;
     public uint Order { get; set; } = 0;
     public bool IsEnabled { get; set; } = true;
     public ServiceFailurePolicies FailurePolicy { get; set; } = ServiceFailurePolicies.Ignore;
@@ -36,10 +47,11 @@ public class PipeProcessorContainer
 
 public interface IDataRepository<T> where T : GatewayModel
 {
-    Task<T?> GetAsync(string key);
+    Task<T?> GetAsync(params object[] key);
     Task AddAsync(T model);
     Task RemoveAsync(string key);
     Task UpdateAsync(T model);
+    Task<IEnumerable<T>> QueryAsync(Func<T, bool> predicate);
 }
 
 public interface IRepoFactory
@@ -107,10 +119,17 @@ public interface IEvents
     public void RegisterEvent(Event eventData);
 }
 
-public class ServiceToolkit
+public class ServiceContext
 {
-    public required IBackgroundQueue BackgroundQueue { get; init; }
-    public required IEvents Events { get; init; }
+    public required IBackgroundQueue DeferredTasks { get; init; } 
+    public required IRepoFactory RepoFactory { get; init; }
+    public required ServiceIdentity Identity { get; init; }
+}
+
+public class ServiceIdentity
+{
+    public required string Identifier { get; init; }
+    public required PluginManifest OriginManifest { get; init; }
 }
 
 public interface IService
@@ -121,7 +140,7 @@ public interface IService
 public interface IRequestProcessor : IService
 {
     // With request context and a method to add a deferred task
-    Task ProcessAsync(RequestContext context, ServiceToolkit services);
+    Task ProcessAsync(RequestContext context, ServiceContext services);
 }
 
 public interface IRequestForwarder : IService

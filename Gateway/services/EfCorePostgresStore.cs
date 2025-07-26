@@ -24,9 +24,16 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<PluginData>().ToTable("plugindata");
             modelBuilder.Entity<Endpoint>().ToTable("endpoints");
-            modelBuilder.Entity<PipeService>().ToTable("pipeservices");
-            modelBuilder.Entity<PluginConfig>().ToTable("pluginconfigs");
+            modelBuilder.Entity<PipeService>().ToTable("pipeservices").HasOne<Pipe>().WithMany(p => p.Services).OnDelete(DeleteBehavior.Cascade).HasForeignKey(p => p.PipeId);
+            modelBuilder.Entity<PluginConfig>().ToTable("pluginconfigs").HasOne<Pipe>().WithMany(p => p.Configs).OnDelete(DeleteBehavior.Cascade).HasForeignKey(p => p.PipeId);
+
             modelBuilder.Entity<Pipe>().ToTable("pipes");
+            
+            modelBuilder.Entity<PipeService>()
+                .HasKey(p => new { p.PluginTitle, p.ServiceTitle, p.PipeId, p.Order });
+            
+            modelBuilder.Entity<PluginConfig>()
+                .HasKey(p => new { p.Key, p.Namespace });
 
             modelBuilder.HasPostgresEnum<ServiceFailurePolicies>();
         }
@@ -72,7 +79,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext), "DbContext cannot be null.");
         }
 
-        public async Task<T?> GetAsync(string key)
+        public async Task<T?> GetAsync(params object[] key)
         {
             return await _dbSet.FindAsync(key);
         }
@@ -97,6 +104,11 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
         {
             _dbSet.Update(model);
             await _dbContext.SaveChangesAsync();
+        }
+        
+        public async Task<IEnumerable<T>> QueryAsync(Func<T, bool> predicate)
+        {
+            return await Task.FromResult(_dbSet.AsNoTracking().Where(predicate).ToList());
         }
 
     }

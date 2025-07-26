@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 public interface IConfigurationsProvider
 {
-    Task InitialiseAsync (PluginManager pluginManager, IStore store);
+    Task InitialiseAsync (PluginManager pluginManager, IRepoFactory repoFactory);
     Task<Dictionary<string, PipeConfiguration>> GetAllPipeConfigsAsync();
     Task<PipeConfiguration> GetPipeConfigAsync(string? endpoint = null);
     Task SetPipeConfigAsync(PipeConfiguration configuration, string? endpoint = null);
