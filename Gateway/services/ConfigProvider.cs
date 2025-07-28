@@ -1,5 +1,6 @@
 using GatewayPluginContract;
-using Endpoint = GatewayPluginContract.Endpoint;
+using Endpoint = GatewayPluginContract.Entities.Endpoint;
+using GatewayPluginContract.Entities;
 
 namespace Gateway.services;
 using System.Collections.Generic;
@@ -14,7 +15,7 @@ public class ConfigProvider : IConfigurationsProvider
         Forwarder = new HttpRequestForwarder()
     };
     
-    private IRepoFactory? _repoFactory;
+    private IRepoFactory? _DataRepos;
     private PluginManager? _pluginManager;
     private readonly Dictionary<string, PipeConfiguration> _endpointConfigurations = new Dictionary<string, PipeConfiguration>();
 
@@ -46,7 +47,7 @@ public class ConfigProvider : IConfigurationsProvider
     public async Task InitialiseAsync(PluginManager pluginManager, IRepoFactory repoFactory)
     {
 
-        _repoFactory = repoFactory;
+        _DataRepos = repoFactory;
         _pluginManager = pluginManager;
 
         
@@ -66,7 +67,7 @@ public class ConfigProvider : IConfigurationsProvider
     
     public Task<PipeConfiguration> GetPipeConfigAsync(string? endpoint = null)
     {
-        if (_repoFactory == null || _pluginManager == null)
+        if (_DataRepos == null || _pluginManager == null)
         {
             return Task.FromResult(_globalConfiguration);
         }
@@ -74,19 +75,19 @@ public class ConfigProvider : IConfigurationsProvider
         ICollection<PipeService>? services;
         try
         {
-            var endpoints = _repoFactory.GetRepo<Endpoint>();
+            var endpoints = _DataRepos.GetRepo<Endpoint>();
             if (endpoint == null)
             {
                 // If no endpoint is specified, return the global pipe configuration
-                services = _repoFactory.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.FirstOrDefault()?.Services;
+                services = _DataRepos.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.FirstOrDefault()?.Pipeservices;
             }
             else
             {
                 // If an endpoint is specified, get the pipe configuration for that endpoint
-                var ep = endpoints.QueryAsync(e => e.Target.Scheme + e.Target.Host + e.Target.Path == endpoint).Result
+                var ep = endpoints.QueryAsync(e => e.Target.Schema + e.Target.Host + e.Target.BasePath == endpoint).Result
                     .First();
 
-                services = ep.Pipe.Services;
+                services = ep.Pipe.Pipeservices;
             }
             
         }
@@ -149,9 +150,9 @@ public class ConfigProvider : IConfigurationsProvider
         // For testing, return an empty dictionary
         return Task.FromResult(new Dictionary<string, Dictionary<string, string>>());
     }
-    public Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(string? endpoint = null)
+    public async Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(string? endpoint = null)
     {
-        if (_repoFactory == null)
+        if (_DataRepos == null)
         {
             throw new InvalidOperationException("Repository factory is not initialized.");
         }
@@ -160,17 +161,21 @@ public class ConfigProvider : IConfigurationsProvider
         ICollection<PluginConfig>? configs;
         if (endpoint == null)
         {
-            configs = _repoFactory.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true ).Result.FirstOrDefault()?.Configs;
+            configs = _DataRepos.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true ).Result.FirstOrDefault()?.PluginConfigs;
         }
         else
         {
-            configs = _repoFactory.GetRepo<Endpoint>().QueryAsync(e => e.Target.Scheme + e.Target.Host + e.Target.Path == endpoint).Result.FirstOrDefault()?.Pipe.Configs ?? 
-                _repoFactory.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.FirstOrDefault()?.Configs;
+            var test = _DataRepos.GetRepo<Endpoint>()
+                .QueryAsync(e => endpoint.StartsWith(e.Path)).Result.FirstOrDefault()?.Pipe;
+            configs = _DataRepos.GetRepo<Endpoint>().QueryAsync(e => endpoint.StartsWith(e.Path)).Result
+                .FirstOrDefault()?.Pipe?.PluginConfigs;
         }
         
-        if (configs == null || configs.Count == 0)
+        if (configs == null)
         {
-            return Task.FromResult(new Dictionary<string, Dictionary<string, string>>());
+            Console.WriteLine("No configs found for the specified endpoint. Using global configs.");
+            configs = _DataRepos.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.First()?.PluginConfigs;
+            
         }
         // Convert the collection of PluginConfig to an indexed dictionary
         var result = new Dictionary<string, Dictionary<string, string>>();
@@ -182,7 +187,7 @@ public class ConfigProvider : IConfigurationsProvider
             }
             result[config.Namespace][config.Key] = config.Value;
         }
-        return Task.FromResult(result);
+        return result;
     }
     public Task SetServiceConfigAsync(string scope, string key, string value, string? endpoint = null)
     {

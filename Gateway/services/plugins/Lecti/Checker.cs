@@ -1,4 +1,5 @@
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
 
 namespace Lecti;
 
@@ -37,7 +38,7 @@ public class Checker : IRequestProcessor
                     Value = newVariation,
                     Namespace = stk.Identity.OriginManifest.Name,
                 };
-                await stk.RepoFactory.GetRepo<PluginData>().UpdateAsync(data);
+                await stk.DataRepositories.GetRepo<PluginData>().UpdateAsync(data);
             }
 
             stk.DeferredTasks.QueueTask(Task);

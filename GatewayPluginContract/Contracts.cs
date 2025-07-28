@@ -1,4 +1,6 @@
 ﻿using System.IO.Pipelines;
+using System.Linq.Expressions;
+using GatewayPluginContract.Entities;
 using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
@@ -45,18 +47,18 @@ public class PipeProcessorContainer
     public string Identifier { get; set; } = string.Empty;
 }
 
-public interface IDataRepository<T> where T : GatewayModel
+public interface IDataRepository<T> where T : Entity
 {
     Task<T?> GetAsync(params object[] key);
     Task AddAsync(T model);
     Task RemoveAsync(string key);
     Task UpdateAsync(T model);
-    Task<IEnumerable<T>> QueryAsync(Func<T, bool> predicate);
+    Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate);
 }
 
 public interface IRepoFactory
 {
-    IDataRepository<T> GetRepo<T>() where T : GatewayModel;
+    IDataRepository<T> GetRepo<T>() where T : Entity;
 }
 
 public abstract class Store(IConfiguration configuration)
@@ -122,7 +124,7 @@ public interface IEvents
 public class ServiceContext
 {
     public required IBackgroundQueue DeferredTasks { get; init; } 
-    public required IRepoFactory RepoFactory { get; init; }
+    public required IRepoFactory DataRepositories { get; init; }
     public required ServiceIdentity Identity { get; init; }
 }
 

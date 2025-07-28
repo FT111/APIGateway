@@ -45,7 +45,7 @@ public class RequestPipeline
         var tools = new ServiceContext
         {
             DeferredTasks = _backgroundQueue,
-            RepoFactory = _repoFactory,
+            DataRepositories = _repoFactory,
             Identity = container.Processor.Identity,
         };
         try

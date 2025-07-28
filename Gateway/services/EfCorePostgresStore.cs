@@ -1,7 +1,10 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Proxies;
 using EFCore.NamingConventions;
+using Gateway.Context;
 using GatewayPluginContract;
-using Endpoint = GatewayPluginContract.Endpoint;
+using GatewayPluginContract.Entities;
 
 namespace Gateway.services;
 
@@ -11,48 +14,65 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
 {
     private readonly DbContext? _dbContext;
     
-    private class PostgresDbContext(DbContextOptions<PostgresDbContext> options) : DbContext(options)
-    {
-        public DbSet<PluginData> PluginData { get; set; } = null!;
-        public DbSet<Endpoint> Endpoints { get; set; } = null!;
-        public DbSet<PipeService> PipeServices { get; set; } = null!;
-        public DbSet<PluginConfig> PluginConfigs { get; set; } = null!;
-        public DbSet<Pipe> Pipes { get; set; } = null!;
-        
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-            modelBuilder.Entity<PluginData>().ToTable("plugindata");
-            modelBuilder.Entity<Endpoint>().ToTable("endpoints");
-            modelBuilder.Entity<PipeService>().ToTable("pipeservices").HasOne<Pipe>().WithMany(p => p.Services).OnDelete(DeleteBehavior.Cascade).HasForeignKey(p => p.PipeId);
-            modelBuilder.Entity<PluginConfig>().ToTable("pluginconfigs").HasOne<Pipe>().WithMany(p => p.Configs).OnDelete(DeleteBehavior.Cascade).HasForeignKey(p => p.PipeId);
-
-            modelBuilder.Entity<Pipe>().ToTable("pipes");
-            
-            modelBuilder.Entity<PipeService>()
-                .HasKey(p => new { p.PluginTitle, p.ServiceTitle, p.PipeId, p.Order });
-            
-            modelBuilder.Entity<PluginConfig>()
-                .HasKey(p => new { p.Key, p.Namespace });
-
-            modelBuilder.HasPostgresEnum<ServiceFailurePolicies>();
-        }
-        
-    }
+            // private class PostgresDbContext(DbContextOptions<PostgresDbContext> options) : DbContext(options)
+            // {
+            //     public DbSet<PluginData> PluginData { get; set; } = null!;
+            //     public DbSet<Endpoint> Endpoints { get; set; } = null!;
+            //     public DbSet<PipeService> PipeServices { get; set; } = null!;
+            //     public DbSet<PluginConfig> PluginConfigs { get; set; } = null!;
+            //     public DbSet<Pipe> Pipes { get; set; } = null!;
+            //     public DbSet<Target> Targets { get; set; } = null!;
+            //     
+            //     protected override void OnModelCreating(ModelBuilder modelBuilder)
+            //     {
+            //         base.OnModelCreating(modelBuilder);
+            //         modelBuilder.Entity<PluginData>().ToTable("plugindata");
+            //         modelBuilder.Entity<Endpoint>()
+            //             .ToTable("endpoints");
+            //         modelBuilder.Entity<Endpoint>()
+            //             .HasOne(ep => ep.Target)
+            //             .WithMany(t => t.Endpoints)
+            //             .HasForeignKey("target_id");
+            //         modelBuilder.Entity<Endpoint>()
+            //             .HasOne(e => e.Pipe)
+            //             .WithMany(p => p.Endpoints)
+            //             .HasForeignKey("pipe_id")
+            //             .OnDelete(DeleteBehavior.Cascade);
+            //         // modelBuilder.Entity<PipeService>().ToTable("pipeservices").HasOne<Pipe>().WithMany(p => p.Services).HasForeignKey("pipe_id").OnDelete(DeleteBehavior.Cascade);
+            //         modelBuilder.Entity<PluginConfig>().ToTable("pluginconfigs")
+            //             .HasOne<Pipe>().WithMany(p => p.Configs)
+            //             .HasForeignKey("pipe_id")  // Add this line to specify the foreign key column name
+            //             .OnDelete(DeleteBehavior.Cascade);
+            //         modelBuilder.Entity<Target>().ToTable("targets");
+            //         modelBuilder.Entity<Pipe>().ToTable("pipes");
+            //         
+            //         modelBuilder.Entity<PipeService>()
+            //             .HasKey(p => new { p.PluginTitle, p.ServiceTitle, p.PipeId, p.Order });
+            //         
+            //         modelBuilder.Entity<PluginData>()
+            //             .HasKey(p => new { p.Key, p.Namespace });
+            //         
+            //         modelBuilder.Entity<PluginConfig>()
+            //             .HasKey(p => new { p.Key, p.Namespace });
+            //
+            //         modelBuilder.HasPostgresEnum<ServiceFailurePolicies>();
+            //     }
+    // }
     
     public EfCorePostgresStore(IConfiguration configuration) : base(configuration)
     {
         var connectionString = configuration.GetConnectionString("Postgres") ??
                                throw new InvalidOperationException("Connection string 'EfCore' not found in configuration.");
-        var optionsBuilder = new DbContextOptionsBuilder<PostgresDbContext>()
+        var optionsBuilder = new DbContextOptionsBuilder<EfDbContext>()
             .UseNpgsql(connectionString, npgsqlOptions =>
         {
             npgsqlOptions.EnableRetryOnFailure();
             npgsqlOptions.MigrationsAssembly("Gateway");
         })
-            .UseSnakeCaseNamingConvention();
+            .UseSnakeCaseNamingConvention()
+            .UseLazyLoadingProxies();
         
-        _dbContext = new PostgresDbContext(optionsBuilder.Options);
+        _dbContext = new EfDbContext(optionsBuilder.Options);
         if (_dbContext == null)
         {
             throw new InvalidOperationException("Failed to create DbContext.");
@@ -66,9 +86,10 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
         {
             throw new InvalidOperationException("Failed to connect to the database.");
         }
+
     }
 
-    private class DataRepo<T> : IDataRepository<T> where T : GatewayModel
+    private class DataRepo<T> : IDataRepository<T> where T : Entity
     {
         private readonly DbSet<T> _dbSet;
         private readonly DbContext _dbContext;
@@ -106,9 +127,9 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
             await _dbContext.SaveChangesAsync();
         }
         
-        public async Task<IEnumerable<T>> QueryAsync(Func<T, bool> predicate)
+        public async Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate)
         {
-            return await Task.FromResult(_dbSet.AsNoTracking().Where(predicate).ToList());
+            return await Task.FromResult(_dbSet.AsTracking().Where(predicate));
         }
 
     }
@@ -122,7 +143,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext), "DbContext cannot be null.");
         }
 
-        public IDataRepository<T> GetRepo<T>() where T : GatewayModel
+        public IDataRepository<T> GetRepo<T>() where T : Entity
         {
             return new DataRepo<T>(_dbContext);
         }
