@@ -65,13 +65,13 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
                                throw new InvalidOperationException("Connection string 'EfCore' not found in configuration.");
         var optionsBuilder = new DbContextOptionsBuilder<EfDbContext>()
             .UseNpgsql(connectionString, npgsqlOptions =>
-        {
-            npgsqlOptions.EnableRetryOnFailure();
-            npgsqlOptions.MigrationsAssembly("Gateway");
-        })
+            {
+                npgsqlOptions.EnableRetryOnFailure();
+                npgsqlOptions.MigrationsAssembly("Gateway");
+            })
             .UseSnakeCaseNamingConvention()
-            .UseLazyLoadingProxies();
-        
+            .UseLazyLoadingProxies()
+            .EnableSensitiveDataLogging();
         _dbContext = new EfDbContext(optionsBuilder.Options);
         if (_dbContext == null)
         {
@@ -129,7 +129,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
         
         public async Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate)
         {
-            return await Task.FromResult(_dbSet.AsTracking().Where(predicate));
+            return await Task.FromResult(_dbSet.AsNoTracking().Where(predicate));
         }
 
     }
@@ -156,5 +156,15 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
             throw new InvalidOperationException("DbContext is not initialized.");
         }
         return new EfCorePostgresRepoFactory(_dbContext);
+    }
+}
+
+public class EfStoreFactory(IConfiguration configuration) : StoreFactory(configuration)
+{
+    private readonly IConfiguration _configuration = configuration;
+
+    public override GatewayPluginContract.Store CreateStore()
+    {
+        return new EfCorePostgresStore(_configuration);
     }
 }

@@ -4,6 +4,7 @@ using GatewayPluginContract.Entities;
 using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
+using DeferredFunc = Func<CancellationToken, IRepoFactory, Task>;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -93,16 +94,19 @@ public class RequestContext
     public bool IsRestartRequested { get; set; } = false;
     public bool IsForwardingFailed { get; set; } = false;
     public uint RestartCount { get; set; } = 0;
-    public required string TargetPathBase { get; set; }
+    // public required string TargetPathBase { get; set; }
+    public Endpoint? Endpoint { get; set; } = null!;
+    public Target Target { get; set; } = null!;
     public string GatewayPathPrefix { get; set; } = string.Empty;
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
     public Dictionary<string, Dictionary<string, string>> SharedPluginContext { get; set; } = new();
 }
 
+
 public interface IBackgroundQueue
 {
-    void QueueTask(Func<CancellationToken, ValueTask> task);
-    Task<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken cancellationToken = default);
+    void QueueTask(DeferredFunc task);
+    Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
 }
 
 public class Event
@@ -177,4 +181,9 @@ public interface IPlugin
     public Dictionary<ServiceTypes, IService[]> GetServices();
 
     public void ConfigureRegistrar(IPluginServiceRegistrar registrar);
+}
+
+public abstract class StoreFactory(IConfiguration configuration)
+{
+    public abstract Store CreateStore();
 }
