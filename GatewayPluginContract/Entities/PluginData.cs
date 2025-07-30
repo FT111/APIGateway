@@ -11,5 +11,5 @@ public partial class PluginData : Entity
 
     public string? Value { get; set; }
 
-    public string Type { get; set; } = null!;
+    public string Type { get; set; } = "string";
 }

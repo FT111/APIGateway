@@ -65,7 +65,7 @@ public class ConfigProvider : IConfigurationsProvider
         });
     }
     
-    public Task<PipeConfiguration> GetPipeConfigAsync(string? endpoint = null)
+    public Task<PipeConfiguration> GetPipeConfigAsync(Endpoint? endpoint = null)
     {
         if (_DataRepos == null || _pluginManager == null)
         {
@@ -75,7 +75,6 @@ public class ConfigProvider : IConfigurationsProvider
         ICollection<PipeService>? services;
         try
         {
-            var endpoints = _DataRepos.GetRepo<Endpoint>();
             if (endpoint == null)
             {
                 // If no endpoint is specified, return the global pipe configuration
@@ -84,10 +83,7 @@ public class ConfigProvider : IConfigurationsProvider
             else
             {
                 // If an endpoint is specified, get the pipe configuration for that endpoint
-                var ep = endpoints.QueryAsync(e => e.Target.Schema + e.Target.Host + e.Target.BasePath == endpoint).Result
-                    .First();
-
-                services = ep.Pipe.Pipeservices;
+                services = endpoint.Pipe?.Pipeservices;
             }
             
         }
@@ -125,13 +121,13 @@ public class ConfigProvider : IConfigurationsProvider
             }
         }
         
-        Console.WriteLine($"Loaded pipe configuration for endpoint '{endpoint ?? "global"}' with {
+        Console.WriteLine($"Loaded pipe configuration for endpoint '{endpoint?.Path ?? "global"}' with {
             pipe.PreProcessors.Count + pipe.PostProcessors.Count
         } services ");
         return Task.FromResult(pipe);
     }
     
-    public Task SetPipeConfigAsync(PipeConfiguration configuration, string? endpoint = null)
+    public Task SetPipeConfigAsync(PipeConfiguration configuration, Endpoint? endpoint = null)
     {
         if (endpoint == null)
         {
@@ -139,7 +135,7 @@ public class ConfigProvider : IConfigurationsProvider
         }
         else
         {
-            _endpointConfigurations[endpoint] = configuration;
+            _endpointConfigurations[endpoint.Path] = configuration;
         }
         
         return Task.CompletedTask;
@@ -150,7 +146,7 @@ public class ConfigProvider : IConfigurationsProvider
         // For testing, return an empty dictionary
         return Task.FromResult(new Dictionary<string, Dictionary<string, string>>());
     }
-    public async Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(string? endpoint = null)
+    public async Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(Endpoint? endpoint = null)
     {
         if (_DataRepos == null)
         {
@@ -165,10 +161,7 @@ public class ConfigProvider : IConfigurationsProvider
         }
         else
         {
-            var test = _DataRepos.GetRepo<Endpoint>()
-                .QueryAsync(e => endpoint.StartsWith(e.Path)).Result.FirstOrDefault()?.Pipe;
-            configs = _DataRepos.GetRepo<Endpoint>().QueryAsync(e => endpoint.StartsWith(e.Path)).Result
-                .FirstOrDefault()?.Pipe?.PluginConfigs;
+            configs = endpoint.Pipe?.PluginConfigs;
         }
         
         if (configs == null)
@@ -189,7 +182,7 @@ public class ConfigProvider : IConfigurationsProvider
         }
         return result;
     }
-    public Task SetServiceConfigAsync(string scope, string key, string value, string? endpoint = null)
+    public Task SetServiceConfigAsync(string scope, string key, string value, Endpoint? endpoint = null)
     {
         // For testing, do nothing
         return Task.CompletedTask;
