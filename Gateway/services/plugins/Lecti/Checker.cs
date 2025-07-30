@@ -15,14 +15,14 @@ public class Checker : IRequestProcessor
         Console.WriteLine($"Checking response status code: {context.Response.StatusCode} for request to {context.Request.Path}");
         if (context.Response.StatusCode.ToString()[0] != '5' && !context.IsForwardingFailed) return Task.CompletedTask;
         
-        Console.WriteLine($"Response from {context.TargetPathBase} failed with status code {context.Response.StatusCode} and {context.IsForwardingFailed} fault. Checking for fallbacks...");
+        Console.WriteLine($"Response from {context.Target.Host} failed with status code {context.Response.StatusCode} and {context.IsForwardingFailed} fault. Checking for fallbacks...");
 
         List<string> availableVariations =
             System.Text.Json.JsonSerializer.Deserialize<List<string>>(
-                context.PluginConfiguration["Lecti0.1"]["downstream_variants"]) 
-            ?? [context.TargetPathBase];
+                context.PluginConfiguration[stk.Identity.OriginManifest.Name]["downstream_variants"]) 
+            ?? [context.Target.Host];
 
-        availableVariations.Remove(context.TargetPathBase);
+        availableVariations.Remove(context.Target.Host);
 
         if (availableVariations.Count > 0)
         {
@@ -30,7 +30,7 @@ public class Checker : IRequestProcessor
             var random = new Random();
             var newVariation = availableVariations[random.Next(0, availableVariations.Count)];
 
-            async ValueTask Task(CancellationToken cancellationToken)
+            async Task Task(CancellationToken cancellationToken, IRepoFactory dataRepos)
             {
                 var data = new PluginData
                 {
@@ -38,11 +38,11 @@ public class Checker : IRequestProcessor
                     Value = newVariation,
                     Namespace = stk.Identity.OriginManifest.Name,
                 };
-                await stk.DataRepositories.GetRepo<PluginData>().UpdateAsync(data);
+                await dataRepos.GetRepo<PluginData>().UpdateAsync(data);
             }
 
             stk.DeferredTasks.QueueTask(Task);
-            context.TargetPathBase = newVariation;
+            context.Target.Host = newVariation;
             context.IsRestartRequested = true;
 
             Console.WriteLine($"Falling back to {newVariation} for request to {context.Request.Path}");
