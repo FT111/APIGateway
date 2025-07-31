@@ -1,41 +1,50 @@
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
 
 namespace Lecti;
 
 public class Selector : IRequestProcessor
 {
-    public async Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store)
+    public async Task ProcessAsync(RequestContext context, ServiceContext stk)
     {
         // Checks if the IP has already been given an A/B variation
         try
         {
-            var existingRecord =
-                await store.GetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()
-                    .ToString());
-            context.TargetPathBase = existingRecord;
+            Console.WriteLine(
+                $"Checking existing Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}, {stk.Identity.OriginManifest.Name}");
+            var ip = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString();
+            var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == ip) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
+            context.Target.Host = existingRecord.Value;
         }
-        catch (KeyNotFoundException)
+        catch (Exception)
         {
             // If not, randomly assign one of the variations
             var random = new Random();
             Console.WriteLine(
-                $"Assigning new Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress}");
+                $"Assigning new Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}");
 
 
             List<string> availableVariations =
                 System.Text.Json.JsonSerializer.Deserialize<List<string>>(
-                    context.PluginConfiguration["Lecti0.1"]["downstream_variants"])
-                ?? [context.TargetPathBase];
+                    context.PluginConfiguration[stk.Identity.OriginManifest.Name]["downstream_variants"])
+                ?? [context.Target.Host];
             var variation = random.Next(0, availableVariations.Count);
-            context.TargetPathBase = availableVariations[variation];
+            context.Target.Host = availableVariations[variation];
 
             // Store the assigned variation in the scoped store
-            async ValueTask Task(CancellationToken cancellationToken)
+            async Task Task(CancellationToken cancellationToken, IRepoFactory dataRepos)
             {
-                await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", context.TargetPathBase);
+                var data = new PluginData
+                {
+                    Key = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
+                    Value = context.Target.Host,
+                    Namespace = stk.Identity.OriginManifest.Name,
+                };
+                // await store.SetAsync<string>(context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(), "text", context.Target.Host);
+                await dataRepos.GetRepo<PluginData>().UpdateAsync(data);
             }
 
-            backgroundQueue.QueueTask(Task);
+            stk.DeferredTasks.QueueTask(Task);
         }
     }
 }

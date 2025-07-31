@@ -1,5 +1,7 @@
 using System.Net;
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
+using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
 namespace Gateway;
 
@@ -17,21 +19,21 @@ public class RequestPipeline
     private List<PipeProcessorContainer> _postProcessors;
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
-    private readonly IStore _store;
+    private readonly IRepoFactory _repoFactory;
     private readonly IBackgroundQueue _backgroundQueue;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         IConfigurationsProvider configManager,
-        IStore store,
+        IRepoFactory repoFactory,
         IBackgroundQueue backgroundQueue)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
         _forwarder = forwarder;
         _configManager = configManager;
-        _store = store;
+        _repoFactory = repoFactory;
         _backgroundQueue = backgroundQueue;
     }
 
@@ -40,35 +42,40 @@ public class RequestPipeline
         _forwarder = forwarder;
     }
 
-    private async Task UseProcessor(PipeProcessorContainer processor, GatewayPluginContract.RequestContext context)
+    private async Task UseProcessor(PipeProcessorContainer container, GatewayPluginContract.RequestContext context)
     {
-        var serviceStore = Store.CreateScopedStore(_store, processor.Identifier.Split('/')[0]);
+        var tools = new ServiceContext
+        {
+            DeferredTasks = _backgroundQueue,
+            DataRepositories = _repoFactory,
+            Identity = container.Processor.Identity,
+        };
         try
         {
-            await processor.Processor.ProcessAsync(context, _backgroundQueue, serviceStore);
+            await container.Processor.Instance.ProcessAsync(context, tools);
         }
         catch (Exception ex)
         {
             // Handle processor failure based on its failure policy
-            switch (processor.FailurePolicy)
+            switch (container.FailurePolicy)
             {
                 case ServiceFailurePolicies.Ignore:
-                    Console.WriteLine($"Ignoring failure in processor {processor.Identifier}: {ex.Message}");
+                    Console.WriteLine($"Ignoring failure in processor {container.Identifier}: {ex.Message}");
                     break;
                 case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {processor.Identifier} due to failure: {ex.Message}");
+                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.RetryThenBlock:
-                    Console.WriteLine($"Blocking pipeline as  {processor.Identifier} failed. failure: {ex.Message}");
+                    Console.WriteLine($"Blocking pipeline as  {container.Identifier} failed. failure: {ex.Message}");
                     context.IsBlocked = true;
                     break;
                 case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {processor.Identifier} due to failure: {ex.Message}");
+                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.Block:
-                    Console.WriteLine($"Blocking pipeline as {processor.Identifier} failed. failure: {ex.Message}");
+                    Console.WriteLine($"Blocking pipeline as {container.Identifier} failed. failure: {ex.Message}");
                     context.IsBlocked = true;
                     break;
                 default:
@@ -101,7 +108,19 @@ public class RequestPipeline
 
     public async Task ProcessAsync(GatewayPluginContract.RequestContext context, HttpContext httpContext)
     {
-        await SetupPipeline(context);
+        try
+        {
+            await SetupPipeline(context);
+        }
+        catch (Exceptions.PipelineEndedException)
+        {
+            return;
+        }
+        catch (Exception)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
+            return;
+        }
 
         foreach (var processor in _preProcessors)
         {
@@ -137,11 +156,27 @@ public class RequestPipeline
         
         if (_configManager != null)
         {
-            // Load global configuration if available
-            context.PluginConfiguration =
-                await _configManager.GetServiceConfigsAsync(context.Request.Path);
+            var endpoints = _repoFactory.GetRepo<Endpoint>();
+            context.Endpoint = endpoints.QueryAsync(e => context.Request.Path.ToString().StartsWith(e.Path))
+                .Result.FirstOrDefault();
+
+            if (context.Endpoint == null)
+            {
+                // Use fallback target
+                context.Target = _repoFactory.GetRepo<Target>().QueryAsync(t => t.Fallback == true)
+                    .Result.FirstOrDefault() ?? throw new InvalidOperationException("No fallback target found. Cannot process request without a target.");
+            }
+            else
+            {
+                context.Target = context.Endpoint.Target;
+            }
+
+            var ip = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
+            var test = _repoFactory.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == ip) && (dt.Namespace=="Lecti")).Result.FirstOrDefault();
             
-            var config = await _configManager.GetPipeConfigAsync(context.Request.Path);
+            // Load configuration using the endpoint object
+            context.PluginConfiguration = await _configManager.GetServiceConfigsAsync(context.Endpoint);
+            var config = await _configManager.GetPipeConfigAsync(context.Endpoint);
             UsePipeConfig(config);
         }
     }
@@ -153,67 +188,66 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
     private IBackgroundQueue? _backgroundQueue = null;
-    private IStore? _store = null;
+    private IRepoFactory? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
 
-    public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
-    {
-        _forwarder = forwarder;
-        return this;
-    }
-
-    public RequestPipelineBuilder AddPreProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
-    {
-        AddProcessor(processor, ServiceTypes.PreProcessor, order);
-        return this;
-    }
-    
-
-    public RequestPipelineBuilder AddPostProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
-    {
-        AddProcessor(processor, ServiceTypes.PostProcessor, order);
-        return this;
-    }
-    
-    public RequestPipelineBuilder AddProcessor(GatewayPluginContract.IRequestProcessor processor, ServiceTypes type, uint? order = null)
-    {
-        // Sets the order to the current count if not specified
-        if (order is null)
-        {
-            order = type switch
-            {
-                ServiceTypes.PreProcessor => (uint)_preProcessors.Count,
-                ServiceTypes.PostProcessor => (uint)_postProcessors.Count,
-                _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid pipeline type")
-            };
-        }
-
-        
-        var container = new PipeProcessorContainer
-        {
-            Processor = processor,
-            Order = order ?? 0, // Defaults to shut up Rider
-            IsEnabled = true
-        };
-        
-        // Check if a processor with the same order already exists
-        if ((type == ServiceTypes.PreProcessor ? _preProcessors : _postProcessors).Any(proc => proc.Order == order))
-        {
-            throw new InvalidOperationException($"A processor with order {order} already exists in the {type} pipeline.");
-        }
-
-        // Add the processor to the appropriate list
-        if (type == ServiceTypes.PreProcessor)
-        {
-            _preProcessors.Add(container);
-        }
-        else
-        {
-            _postProcessors.Add(container);
-        }
-
-        return this;
-    }
+    // public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
+    // {
+    //     _forwarder = forwarder;
+    //     return this;
+    // }
+    // public RequestPipelineBuilder AddPreProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
+    // {
+    //     AddProcessor(processor, ServiceTypes.PreProcessor, order);
+    //     return this;
+    // }
+    //
+    //
+    // public RequestPipelineBuilder AddPostProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
+    // {
+    //     AddProcessor(processor, ServiceTypes.PostProcessor, order);
+    //     return this;
+    // }
+    //
+    // public RequestPipelineBuilder AddProcessor(GatewayPluginContract.IRequestProcessor processor, ServiceTypes type, uint? order = null)
+    // {
+    //     // Sets the order to the current count if not specified
+    //     if (order is null)
+    //     {
+    //         order = type switch
+    //         {
+    //             ServiceTypes.PreProcessor => (uint)_preProcessors.Count,
+    //             ServiceTypes.PostProcessor => (uint)_postProcessors.Count,
+    //             _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid pipeline type")
+    //         };
+    //     }
+    //
+    //     
+    //     var container = new PipeProcessorContainer
+    //     {
+    //         Processor = processor,
+    //         Order = order ?? 0, // Defaults to shut up Rider
+    //         IsEnabled = true
+    //     };
+    //     
+    //     // Check if a processor with the same order already exists
+    //     if ((type == ServiceTypes.PreProcessor ? _preProcessors : _postProcessors).Any(proc => proc.Order == order))
+    //     {
+    //         throw new InvalidOperationException($"A processor with order {order} already exists in the {type} pipeline.");
+    //     }
+    //
+    //     // Add the processor to the appropriate list
+    //     if (type == ServiceTypes.PreProcessor)
+    //     {
+    //         _preProcessors.Add(container);
+    //     }
+    //     else
+    //     {
+    //         _postProcessors.Add(container);
+    //     }
+    //
+    //     return this;
+    // }
     
     public RequestPipelineBuilder WithConfigProvider(IConfigurationsProvider manager)
     {
@@ -222,9 +256,9 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithStore(IStore store)
+    public RequestPipelineBuilder WithRepoProvider(IRepoFactory repoFactory)
     {
-        _store = store;
+        _repoFactory = repoFactory;
         return this;
     }
     
@@ -241,7 +275,7 @@ public class RequestPipelineBuilder
 
     public RequestPipeline Build()
     {
-        if (_configManager == null || _store == null || _backgroundQueue == null)
+        if (_configManager == null || _repoFactory == null || _backgroundQueue == null)
         {
             throw new InvalidOperationException("All required components (config manager, store, background queue) must be set before building the pipeline.");
         }
@@ -250,6 +284,6 @@ public class RequestPipelineBuilder
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _store, _backgroundQueue);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue);
     }
 }

@@ -1,60 +1,70 @@
 ﻿using System.IO.Pipelines;
+using System.Linq.Expressions;
+using GatewayPluginContract.Entities;
+using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
+using DeferredFunc = Func<CancellationToken, IRepoFactory, Task>;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-
 
 public class PipeConfiguration
 {
     public required List<PipeProcessorContainer> PreProcessors { get; set; } 
     public required List<PipeProcessorContainer> PostProcessors { get; set; }
     public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; }
+    public Endpoint? Endpoint { get; init; }
 }
 
-public class PipeRecipeServiceContainer
+// public class PipeRecipeServiceContainer
+// {
+//     public required string Identifier { get; set; }
+//     public required ServiceFailurePolicies FailurePolicy { get; set; }
+// }
+
+// public class PipeConfigurationRecipe
+// {
+//     public required List<PipeRecipeServiceContainer> ServiceList { get; set; }
+// }
+
+
+public class ServiceContainer<T> where T : IService
+
 {
-    public required string Identifier { get; set; }
-    public required ServiceFailurePolicies FailurePolicy { get; set; }
+    public required T Instance { get; set; }
+    public required ServiceTypes ServiceType { get; set; }
+    public required ServiceIdentity Identity { get; set; }
+    // public required Dictionary<string, string> PluginConfiguration { get; set; }
 }
 
-public class PipeConfigurationRecipe
-{
-    public required List<PipeRecipeServiceContainer> ServiceList { get; set; }
-}
 
 public class PipeProcessorContainer
 {
-    public GatewayPluginContract.IRequestProcessor Processor { get; set; } = null!;
+    public ServiceContainer<IRequestProcessor> Processor { get; set; } = null!;
     public uint Order { get; set; } = 0;
     public bool IsEnabled { get; set; } = true;
     public ServiceFailurePolicies FailurePolicy { get; set; } = ServiceFailurePolicies.Ignore;
     public string Identifier { get; set; } = string.Empty;
 }
 
-public interface IStore
+public interface IDataRepository<T> where T : Entity
 {
-    /// <summary>
-    /// Interface for a simple key-value store.
-    /// Implementations should provide a persistent storage mechanism.
-    /// </summary>
-    Task<T> GetAsync<T>(string key, string? scope = null) where T : notnull;
-    Task SetAsync<T>(string key, T value, string type, string? scope = null) where T : notnull;
-    Task RemoveAsync(string key, string? scope = null);
-    
-    Task<Dictionary<string, Dictionary<string, string>>> GetPluginConfigsAsync(string? endpoint = null);
-    
-    Task<PipeConfigurationRecipe> GetPipeConfigRecipeAsync(string? endpoint = null);
-    
-    
+    Task<T?> GetAsync(params object[] key);
+    Task AddAsync(T model);
+    Task RemoveAsync(string key);
+    Task UpdateAsync(T model);
+    Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate);
 }
 
-public interface IScopedStore
+public interface IRepoFactory
 {
-    Task<T> GetAsync<T>(string key) where T : notnull;
-    Task SetAsync<T>(string key, string type, T value) where T : notnull;
-    Task RemoveAsync(string key);
+    IDataRepository<T> GetRepo<T>() where T : Entity;
+}
+
+public abstract class Store(IConfiguration configuration)
+{
+    public abstract IRepoFactory GetRepoFactory();
 }
 
 
@@ -84,16 +94,48 @@ public class RequestContext
     public bool IsRestartRequested { get; set; } = false;
     public bool IsForwardingFailed { get; set; } = false;
     public uint RestartCount { get; set; } = 0;
-    public required string TargetPathBase { get; set; }
+    // public required string TargetPathBase { get; set; }
+    public Endpoint? Endpoint { get; set; } = null!;
+    public Target Target { get; set; } = null!;
     public string GatewayPathPrefix { get; set; } = string.Empty;
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
     public Dictionary<string, Dictionary<string, string>> SharedPluginContext { get; set; } = new();
 }
 
+
 public interface IBackgroundQueue
 {
-    void QueueTask(Func<CancellationToken, ValueTask> task);
-    Task<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken cancellationToken = default);
+    void QueueTask(DeferredFunc task);
+    Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
+}
+
+public class Event
+{
+    public required string Title { get; init; }
+    public required string Description { get; init; }
+    public required bool IsWarning { get; init; } = false;
+    public required Endpoint Endpoint { get; init; }
+    public required string ServiceIdentifier { get; init; }
+    public required string Type { get; init; }
+    public string? Data { get; init; }
+}
+
+public interface IEvents
+{
+    public void RegisterEvent(Event eventData);
+}
+
+public class ServiceContext
+{
+    public required IBackgroundQueue DeferredTasks { get; init; } 
+    public required IRepoFactory DataRepositories { get; init; }
+    public required ServiceIdentity Identity { get; init; }
+}
+
+public class ServiceIdentity
+{
+    public required string Identifier { get; init; }
+    public required PluginManifest OriginManifest { get; init; }
 }
 
 public interface IService
@@ -104,7 +146,7 @@ public interface IService
 public interface IRequestProcessor : IService
 {
     // With request context and a method to add a deferred task
-    Task ProcessAsync(RequestContext context, IBackgroundQueue backgroundQueue, IScopedStore store);
+    Task ProcessAsync(RequestContext context, ServiceContext services);
 }
 
 public interface IRequestForwarder : IService
@@ -139,4 +181,9 @@ public interface IPlugin
     public Dictionary<ServiceTypes, IService[]> GetServices();
 
     public void ConfigureRegistrar(IPluginServiceRegistrar registrar);
+}
+
+public abstract class StoreFactory(IConfiguration configuration)
+{
+    public abstract Store CreateStore();
 }
