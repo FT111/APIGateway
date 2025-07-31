@@ -1,5 +1,7 @@
 using System.Net;
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
+using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
 namespace Gateway;
 
@@ -106,7 +108,19 @@ public class RequestPipeline
 
     public async Task ProcessAsync(GatewayPluginContract.RequestContext context, HttpContext httpContext)
     {
-        await SetupPipeline(context);
+        try
+        {
+            await SetupPipeline(context);
+        }
+        catch (Exceptions.PipelineEndedException)
+        {
+            return;
+        }
+        catch (Exception)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
+            return;
+        }
 
         foreach (var processor in _preProcessors)
         {
@@ -142,11 +156,27 @@ public class RequestPipeline
         
         if (_configManager != null)
         {
-            // Load global configuration if available
-            context.PluginConfiguration =
-                await _configManager.GetServiceConfigsAsync(context.Request.Path);
+            var endpoints = _repoFactory.GetRepo<Endpoint>();
+            context.Endpoint = endpoints.QueryAsync(e => context.Request.Path.ToString().StartsWith(e.Path))
+                .Result.FirstOrDefault();
+
+            if (context.Endpoint == null)
+            {
+                // Use fallback target
+                context.Target = _repoFactory.GetRepo<Target>().QueryAsync(t => t.Fallback == true)
+                    .Result.FirstOrDefault() ?? throw new InvalidOperationException("No fallback target found. Cannot process request without a target.");
+            }
+            else
+            {
+                context.Target = context.Endpoint.Target;
+            }
+
+            var ip = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
+            var test = _repoFactory.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == ip) && (dt.Namespace=="Lecti")).Result.FirstOrDefault();
             
-            var config = await _configManager.GetPipeConfigAsync(context.Request.Path);
+            // Load configuration using the endpoint object
+            context.PluginConfiguration = await _configManager.GetServiceConfigsAsync(context.Endpoint);
+            var config = await _configManager.GetPipeConfigAsync(context.Endpoint);
             UsePipeConfig(config);
         }
     }

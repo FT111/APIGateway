@@ -11,11 +11,12 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
         var request = context.Request;
         var response = context.Response;
         var amendedPath = request.Path.ToString().Remove(0, context.GatewayPathPrefix.Length);
+        var uriString = $"{context.Target.Schema}{context.Target.Host}{context.Target.BasePath ?? "/"}{amendedPath}";
         
         var forwardedRequest = new HttpRequestMessage
         {
             Method = new HttpMethod(request.Method),
-            RequestUri = new Uri($"{request.Scheme}://{context.TargetPathBase}/{amendedPath}{request.QueryString}"),
+            RequestUri = new Uri(uriString),
             Content = request.HasFormContentType
                 ? new FormUrlEncodedContent(request.Form.ToDictionary(k => k.Key, v => v.Value.ToString()))
                 : request.Body.CanSeek
@@ -24,6 +25,7 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
                         ? new StreamContent(new MemoryStream())
                         : null
         };
+        Console.WriteLine($"Forwarding request to: {forwardedRequest.RequestUri}");
 
         foreach (var header in request.Headers)
         {
@@ -34,7 +36,7 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
         try 
         {
             // Forward the request to the target URL
-            response.Clear();
+            // response.Clear();
             forwardedResponse = await _client.SendAsync(forwardedRequest);
             await forwardedResponse.Content.LoadIntoBufferAsync();
             
