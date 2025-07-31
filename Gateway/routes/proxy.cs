@@ -22,7 +22,11 @@ public static class Proxy
         queueHandler.ExecuteAsync(CancellationToken.None).ConfigureAwait(false);
         
         var pluginManager = new PluginManager();
-        await pluginManager.LoadPluginsAsync("services/plugins");
+        await pluginManager.LoadPluginsAsync(app.Configuration["PluginDirectory"] ?? "service/plugins");
+        
+        var supervisorConnection = new RabbitSupervisorAdapter(app.Configuration);
+        var supervisorClient = new SupervisorClient(supervisorConnection, app, pluginManager);
+        supervisorClient.StartAsync().ConfigureAwait(false);
 
         var serviceConfigProvider = new ConfigProvider();
         await serviceConfigProvider.InitialiseAsync(pluginManager, repoFactory);

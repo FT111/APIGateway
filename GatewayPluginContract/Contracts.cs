@@ -109,21 +109,6 @@ public interface IBackgroundQueue
     Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
 }
 
-public class Event
-{
-    public required string Title { get; init; }
-    public required string Description { get; init; }
-    public required bool IsWarning { get; init; } = false;
-    public required Endpoint Endpoint { get; init; }
-    public required string ServiceIdentifier { get; init; }
-    public required string Type { get; init; }
-    public string? Data { get; init; }
-}
-
-public interface IEvents
-{
-    public void RegisterEvent(Event eventData);
-}
 
 public class ServiceContext
 {
@@ -186,4 +171,17 @@ public interface IPlugin
 public abstract class StoreFactory(IConfiguration configuration)
 {
     public abstract Store CreateStore();
+}
+
+public abstract class SupervisorAdapter(IConfiguration configuration)
+{
+    public abstract Task SendEventAsync(SupervisorEvent eventData);
+    public abstract Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler);
+}
+
+public enum SupervisorEventType
+{
+    Command,
+    Event,
+    Heartbeat
 }
