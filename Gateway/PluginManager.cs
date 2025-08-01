@@ -51,6 +51,8 @@ public class PluginManager
 
     public Task LoadPluginsAsync(string path)
     {
+        Registrar.Reset();
+        _plugins.Clear();
         List<McMaster.NETCore.Plugins.PluginLoader> pluginLoaders = PluginLoader.GetPluginLoaders(path);
 
         foreach (var pluginLoader in pluginLoaders)
@@ -116,6 +118,11 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
         
         Console.WriteLine($"Registered service: {title} of type {serviceType}");
         
+    }
+    
+    public void Reset()
+    {
+        _services.Clear();
     }
 }
 }
