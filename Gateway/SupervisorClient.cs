@@ -7,11 +7,14 @@ namespace Gateway;
 /// A client for the Gateway Supervisor.
 /// Communicates with the Supervisor, handling heartbeats, plugin updates, and manager commands.
 /// </summary>
-public class SupervisorClient(SupervisorAdapter supervisor, WebApplication app, PluginManager pluginManager)
+public class SupervisorClient(
+    SupervisorAdapter supervisor,
+    PluginManager pluginManager,
+    IConfiguration configuration
+    )
 {
     private readonly SupervisorAdapter _supervisor = supervisor ?? throw new ArgumentNullException(nameof(supervisor));
     private readonly PluginManager _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
-    private readonly WebApplication _app = app ?? throw new ArgumentNullException(nameof(app));
 
     public async Task StartAsync()
     {
@@ -23,7 +26,7 @@ public class SupervisorClient(SupervisorAdapter supervisor, WebApplication app, 
         });
         
         // Start the heartbeat loop
-        var heartbeatInterval = TimeSpan.FromSeconds(30); // Default heartbeat interval
+        var heartbeatInterval = TimeSpan.FromSeconds(30);
         _ = StartHeartbeatLoopAsync(heartbeatInterval);
         // Handle Supervisor commands
         await HandleSupervisorCommandsAsync();
@@ -62,12 +65,13 @@ public class SupervisorClient(SupervisorAdapter supervisor, WebApplication app, 
             if (eventData.Value == "update_plugins")
             {
                 Console.WriteLine("Received plugin update command. Updating plugins...");
-                await _pluginManager.LoadPluginsAsync(app.Configuration["PluginDirectory"] ?? "services/plugins");
+                // This will fetch plugins from the DB in the future
+                await _pluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "services/plugins");
             }
             else if (eventData.Value == "restart")
             {
                 Console.WriteLine("Received gateway restart command. Restarting gateway...");
-                _app.Lifetime.StopApplication();
+                // _app.Lifetime.StopApplication();
             }
             else
             {

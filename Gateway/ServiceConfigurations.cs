@@ -5,7 +5,7 @@ namespace Gateway;
 using System.Collections.Generic;
 
 
-public interface IConfigurationsProvider
+public interface IConfigurationsProvider : IService
 {
     Task InitialiseAsync (PluginManager pluginManager, IRepoFactory repoFactory);
     Task<Dictionary<string, PipeConfiguration>> GetAllPipeConfigsAsync();
