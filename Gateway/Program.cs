@@ -19,8 +19,11 @@ namespace Gateway
             }
 
             // app.UseHttpsRedirection();
+
+            var builtGateway = await new GatewayBuilder(app.Configuration)
+                .BuildFromConfiguration();
             
-            await Proxy.Init(app);
+            await app.Init(builtGateway.Gateway);
 
             app.Run();
         }

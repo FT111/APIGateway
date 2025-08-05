@@ -1,58 +1,76 @@
 using System.ComponentModel.Design;
+using Gateway.services;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 
 namespace Gateway;
 
 // Nain director
-public class Gateway(StoreFactory store, SupervisorClient supervisor, TaskQueue taskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager)
+public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager)
 {
+    public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
     public StoreFactory Store { get; } = store;
-    public SupervisorClient Supervisor { get; } = supervisor;
-    public TaskQueue TaskQueue { get; set; } = taskQueue;
+    public LocalTaskQueue LocalTaskQueue { get; set; } = localTaskQueue;
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
     public PluginManager PluginManager { get; set; } = pluginManager;
     public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder().
         WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
-        .WithBackgroundQueue(taskQueue)
+        .WithBackgroundQueue(localTaskQueue)
         .Build();
-    
-    
 }
 
-public class GatewayBuilder
+public class GatewayBuild(Gateway gateway, SupervisorClient supervisorClient)
 {
+    public Gateway Gateway { get; } = gateway;
+    public SupervisorClient SupervisorClient { get; } = supervisorClient;
+}
+
+public class GatewayBuilder(IConfiguration configuration)
+{
+    private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     private StoreFactory StoreFactory { get; set; } = null!;
-    private SupervisorClient Supervisor { get; set; } = null!;
-    private TaskQueue TaskQueue { get; set; } = null!;
+    private SupervisorAdapter SupervisorAdapter { get; set; } = null!;
+    private LocalTaskQueue LocalTaskQueue { get; set; } = null!;
     private IConfigurationsProvider ConfigurationsProvider { get; set; } = null!;
-    private PluginManager PluginManager { get; set; } = new PluginManager();
+    private PluginManager PluginManager { get; set; } = new PluginManager(configuration);
     
-    public async Task<Gateway> Build()
+    public async Task<GatewayBuild> Build()
     {
-        await Supervisor.StartAsync();
-        return await Task.FromResult(new Gateway(StoreFactory, Supervisor, TaskQueue, ConfigurationsProvider, PluginManager));
+        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager);
+        var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
+            ?? throw new ArgumentNullException(nameof(SupervisorAdapter));
+            
+        await supervisorClient.StartAsync();
+        
+        gateway.ConfigurationsProvider.LoadPipeConfigs();
+        gateway.ConfigurationsProvider.LoadServiceConfigs();
+        
+        return new GatewayBuild(
+            gateway, 
+            supervisorClient
+        );
     }
     public void WithStoreProvider(StoreFactory storeFactory)
     {
         StoreFactory = storeFactory;
     }
 
-    public void WithSupervisor(SupervisorAdapter supervisorAdapter, IConfiguration configuration)
+    public void WithSupervisor(SupervisorAdapter supervisorAdapter)
     {
-        Supervisor = new SupervisorClient(supervisorAdapter, PluginManager, configuration)
+        SupervisorAdapter = supervisorAdapter
             ?? throw new ArgumentNullException(nameof(supervisorAdapter));
     }
     
-    public void WithTaskQueue(TaskQueue taskQueue)
+    public void WithTaskQueue(LocalTaskQueue localTaskQueue)
     {
-        TaskQueue = taskQueue ?? throw new ArgumentNullException(nameof(taskQueue));
+        LocalTaskQueue = localTaskQueue ?? throw new ArgumentNullException(nameof(localTaskQueue));
     }
     
-    public void WithConfigurationsProvider(IConfigurationsProvider configurationsProvider)
+    public async Task WithConfigurationsProvider(IConfigurationsProvider configurationsProvider)
     {
         ConfigurationsProvider = configurationsProvider ?? throw new ArgumentNullException(nameof(configurationsProvider));
+        await ConfigurationsProvider.InitialiseAsync(PluginManager, StoreFactory.CreateStore().GetRepoFactory());
     }
     
     public async Task LoadPluginServicesAsync(string pluginDirectory)
@@ -60,11 +78,12 @@ public class GatewayBuilder
         await PluginManager.LoadPluginsAsync(pluginDirectory);
     }
 
-    public async Task<Gateway> BuildFromConfiguration(IConfiguration configuration)
+    public async Task<GatewayBuild> BuildFromConfiguration()
     {
         await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "service/plugins");
+        PluginManager.LoadInternalServices(configuration["CoreServicesNamespace"] ?? "Gateway.services");
         var coreServices = configuration.GetSection("coreServices") ?? throw new InvalidOperationException("coreServices configuration section not found.");
-        var requiredServices = new[] {"Store", "Supervisor", "TaskQueue", "ConfigurationsProvider"};
+        var requiredServices = new[] {"Store", "Supervisor", "TaskQueue", "ConfigurationProvider"};
         Dictionary<string, string> serviceIdentifiers = new Dictionary<string, string>();
         
         foreach (var service in requiredServices)
@@ -74,12 +93,13 @@ public class GatewayBuilder
         
         StoreFactory = PluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["Store"]).Instance
             ?? throw new InvalidOperationException("StoreFactory service not found.");
-        Supervisor = new SupervisorClient(PluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["Supervisor"]).Instance, PluginManager, configuration)
+        SupervisorAdapter = PluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["Supervisor"]).Instance
             ?? throw new InvalidOperationException("SupervisorClient service not found.");
-        TaskQueue = PluginManager.Registrar.GetServiceByName<TaskQueue>(serviceIdentifiers["TaskQueue"]).Instance
+        LocalTaskQueue = PluginManager.Registrar.GetServiceByName<LocalTaskQueue>(serviceIdentifiers["TaskQueue"]).Instance
             ?? throw new InvalidOperationException("TaskQueue service not found.");
-        ConfigurationsProvider = PluginManager.Registrar.GetServiceByName<IConfigurationsProvider>(serviceIdentifiers["ConfigurationsProvider"]).Instance
-            ?? throw new InvalidOperationException("ConfigurationsProvider service not found.");
+        ConfigurationsProvider = PluginManager.Registrar.GetServiceByName<IConfigurationsProvider>(serviceIdentifiers["ConfigurationProvider"]).Instance
+            ?? throw new InvalidOperationException("ConfigurationProvider service not found.");
+        await ConfigurationsProvider.InitialiseAsync(PluginManager, StoreFactory.CreateStore().GetRepoFactory());
         
         return await Build();
     }
