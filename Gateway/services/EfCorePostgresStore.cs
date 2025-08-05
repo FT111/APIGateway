@@ -162,7 +162,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
 public class EfStoreFactory(IConfiguration configuration) : StoreFactory(configuration)
 {
     private readonly IConfiguration _configuration = configuration;
-
+    
     public override GatewayPluginContract.Store CreateStore()
     {
         return new EfCorePostgresStore(_configuration);

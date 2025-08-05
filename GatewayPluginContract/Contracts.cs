@@ -103,7 +103,7 @@ public class RequestContext
 }
 
 
-public interface IBackgroundQueue
+public interface IBackgroundQueue : IService
 {
     void QueueTask(DeferredFunc task);
     Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
@@ -143,7 +143,8 @@ public enum ServiceTypes
 {
     PreProcessor,
     PostProcessor,
-    Forwarder
+    Forwarder,
+    Core
 }
 
 public enum ServiceFailurePolicies
@@ -168,12 +169,12 @@ public interface IPlugin
     public void ConfigureRegistrar(IPluginServiceRegistrar registrar);
 }
 
-public abstract class StoreFactory(IConfiguration configuration)
+public abstract class StoreFactory(IConfiguration configuration) : IService
 {
     public abstract Store CreateStore();
 }
 
-public abstract class SupervisorAdapter(IConfiguration configuration)
+public abstract class SupervisorAdapter(IConfiguration configuration) : IService
 {
     public abstract Task SendEventAsync(SupervisorEvent eventData);
     public abstract Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler);
