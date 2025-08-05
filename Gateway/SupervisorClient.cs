@@ -9,12 +9,10 @@ namespace Gateway;
 /// </summary>
 public class SupervisorClient(
     SupervisorAdapter supervisor,
-    PluginManager pluginManager,
-    IConfiguration configuration
+    Gateway gateway
     )
 {
     private readonly SupervisorAdapter _supervisor = supervisor ?? throw new ArgumentNullException(nameof(supervisor));
-    private readonly PluginManager _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
 
     public async Task StartAsync()
     {
@@ -62,20 +60,24 @@ public class SupervisorClient(
         // Subscribe to Supervisor commands
         await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (eventData) =>
         {
-            if (eventData.Value == "update_plugins")
+            switch (eventData.Value)
             {
-                Console.WriteLine("Received plugin update command. Updating plugins...");
-                // This will fetch plugins from the DB in the future
-                await _pluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "services/plugins");
-            }
-            else if (eventData.Value == "restart")
-            {
-                Console.WriteLine("Received gateway restart command. Restarting gateway...");
-                // _app.Lifetime.StopApplication();
-            }
-            else
-            {
-                Console.WriteLine($"Unknown command received: {eventData.Value}");
+                case "update_plugins":
+                    Console.WriteLine("Received plugin update command. Updating plugins...");
+                    // This will fetch plugins from the DB in the future
+                    await gateway.PluginManager.LoadPluginsAsync(gateway.BaseConfiguration["PluginDirectory"] ?? "services/plugins");
+                    break;
+                case "restart":
+                    Console.WriteLine("Received gateway restart command. Restarting gateway...");
+                    // _app.Lifetime.StopApplication();
+                    break;
+                case "update_configurations":
+                    gateway.ConfigurationsProvider.LoadPipeConfigs();
+                    gateway.ConfigurationsProvider.LoadServiceConfigs();
+                    break;
+                default:
+                    Console.WriteLine($"Unknown command received: {eventData.Value}");
+                    break;
             }
         });
     }
