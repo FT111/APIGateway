@@ -160,13 +160,27 @@ public interface IPluginServiceRegistrar
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
 }
 
+public interface IDataRegistrar
+{
+    void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
+}
+
+public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
+{
+    public required string Name { get; init; }
+    public string? Description { get; init; }
+    public required Func<IRepoFactory, TModel> GetData { get; init; }
+}
+
 public interface IPlugin
 {
     public PluginManifest GetManifest();
     
     public Dictionary<ServiceTypes, IService[]> GetServices();
 
-    public void ConfigureRegistrar(IPluginServiceRegistrar registrar);
+    public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar);
+    
+    public void ConfigureDataRegistrar(IDataRegistrar registrar);
 }
 
 public abstract class StoreFactory(IConfiguration configuration) : IService
