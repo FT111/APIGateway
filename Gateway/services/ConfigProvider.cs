@@ -26,7 +26,7 @@ public class ConfigProvider : IConfigurationsProvider
     private ICollection<PipeService> _globalPipeServices = new List<PipeService>();
     private Dictionary<string, ICollection<PipeService>> _endpointPipeServices = new Dictionary<string, ICollection<PipeService>>();
     
-    private IRepoFactory? _dataRepos;
+    private IGatewayRepositories? _dataRepos;
     private PluginManager? _pluginManager;
 
     public ConfigProvider(IConfiguration configuration)
@@ -56,9 +56,9 @@ public class ConfigProvider : IConfigurationsProvider
         }
     }
 
-    public async Task InitialiseAsync(PluginManager pluginManager, IRepoFactory repoFactory)
+    public async Task InitialiseAsync(PluginManager pluginManager, IGatewayRepositories gatewayRepositories)
     {
-        _dataRepos = repoFactory;
+        _dataRepos = gatewayRepositories;
         _pluginManager = pluginManager;
         
         // Load initial configurations
@@ -127,9 +127,9 @@ public class ConfigProvider : IConfigurationsProvider
             }
         }
 
-        Console.WriteLine($"Loaded pipe configuration for endpoint '{endpoint?.Path ?? "global"}' with {
+        Console.WriteLine($"-======= Loaded pipe configuration for endpoint '{endpoint?.Path ?? "global"}' with {
             pipe.PreProcessors.Count + pipe.PostProcessors.Count
-        } services ");
+        } services =======-");
         return Task.FromResult(pipe);
     }
 

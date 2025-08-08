@@ -1,4 +1,6 @@
-﻿namespace  Lecti;
+﻿using GatewayPluginContract.Entities;
+
+namespace  Lecti;
 
 using System;
 using System.Collections.Generic;
@@ -24,12 +26,52 @@ public class LectiPlugin : IPlugin
         return _manifest;
     }
 
-    public void ConfigureRegistrar(IPluginServiceRegistrar registrar)
+    public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar)
     {
         registrar.RegisterService<Selector>(this, new Selector(), ServiceTypes.PreProcessor);
         registrar.RegisterService<Checker>(this, new Checker(), ServiceTypes.PostProcessor);
     }
-    
+
+    public void ConfigureDataRegistrar(IDataRegistrar registrar)
+    {
+        registrar.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
+        {
+            Name = "Lecti A/B Test Results",
+            Description = "Shows the current distribution of A/B test targets.",
+            GetData = (repoFactory) =>
+            {
+                var assignments = repoFactory.GetRepo<PluginData>()
+                    .QueryAsync((d) => d.Namespace == _manifest.Name && d.Category == "ipTargets").Result;
+                
+                var targetTotals = new Dictionary<string, double>();
+                foreach (var assignment in assignments)
+                {
+                    if (assignment.Value == null) continue;
+                    if (!double.TryParse(assignment.Value, out var value)) continue;
+
+                    if (!targetTotals.TryAdd(assignment.Key, 0))
+                    {
+                        targetTotals[assignment.Key] += 1;
+                    }
+                }
+                // Normalize the totals to be between 0 and 1
+                var total = targetTotals.Values.Sum();
+                if (total == 0) return new Visualisation.PieChartModel { Segments = new Dictionary<string, double>() };
+                
+                var segments = new Dictionary<string, double>();
+                foreach (var kvp in targetTotals)
+                {
+                    segments[kvp.Key] = kvp.Value / total;
+                }
+                
+                return new Visualisation.PieChartModel
+                {
+                    Segments = segments
+                };
+            }
+        });
+    }
+
     public Dictionary<ServiceTypes, IService[]> GetServices()
     {
         return new Dictionary<ServiceTypes, IService[]>

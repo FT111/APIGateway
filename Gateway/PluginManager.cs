@@ -87,7 +87,7 @@ public class PluginManager(IConfiguration configuration)
 
                 _plugins.Add(plugin);
                 
-                plugin.ConfigureRegistrar(Registrar);
+                plugin.ConfigurePluginRegistrar(Registrar);
             }
         }
         ResolveDependencies();
