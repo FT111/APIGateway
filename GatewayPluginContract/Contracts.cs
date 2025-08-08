@@ -4,7 +4,7 @@ using GatewayPluginContract.Entities;
 using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
-using DeferredFunc = Func<CancellationToken, IRepoFactory, Task>;
+using DeferredFunc = Func<CancellationToken, IGatewayRepositories, Task>;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -51,20 +51,21 @@ public class PipeProcessorContainer
 public interface IDataRepository<T> where T : Entity
 {
     Task<T?> GetAsync(params object[] key);
+    Task<List<T>> GetAllAsync();
     Task AddAsync(T model);
     Task RemoveAsync(string key);
     Task UpdateAsync(T model);
     Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate);
 }
 
-public interface IRepoFactory
+public interface IGatewayRepositories
 {
     IDataRepository<T> GetRepo<T>() where T : Entity;
 }
 
 public abstract class Store(IConfiguration configuration)
 {
-    public abstract IRepoFactory GetRepoFactory();
+    public abstract IGatewayRepositories GetRepoFactory();
 }
 
 
@@ -103,32 +104,17 @@ public class RequestContext
 }
 
 
-public interface IBackgroundQueue
+public interface IBackgroundQueue : IService
 {
     void QueueTask(DeferredFunc task);
     Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
 }
 
-public class Event
-{
-    public required string Title { get; init; }
-    public required string Description { get; init; }
-    public required bool IsWarning { get; init; } = false;
-    public required Endpoint Endpoint { get; init; }
-    public required string ServiceIdentifier { get; init; }
-    public required string Type { get; init; }
-    public string? Data { get; init; }
-}
-
-public interface IEvents
-{
-    public void RegisterEvent(Event eventData);
-}
 
 public class ServiceContext
 {
     public required IBackgroundQueue DeferredTasks { get; init; } 
-    public required IRepoFactory DataRepositories { get; init; }
+    public required IGatewayRepositories DataRepositories { get; init; }
     public required ServiceIdentity Identity { get; init; }
 }
 
@@ -158,7 +144,8 @@ public enum ServiceTypes
 {
     PreProcessor,
     PostProcessor,
-    Forwarder
+    Forwarder,
+    Core
 }
 
 public enum ServiceFailurePolicies
@@ -174,16 +161,43 @@ public interface IPluginServiceRegistrar
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
 }
 
+public interface IDataRegistrar
+{
+    void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
+}
+
+public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
+{
+    public required string Name { get; init; }
+    public string? Description { get; init; }
+    public required Func<IGatewayRepositories, TModel> GetData { get; init; }
+}
+
 public interface IPlugin
 {
     public PluginManifest GetManifest();
     
     public Dictionary<ServiceTypes, IService[]> GetServices();
 
-    public void ConfigureRegistrar(IPluginServiceRegistrar registrar);
+    public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar);
+    
+    public void ConfigureDataRegistrar(IDataRegistrar registrar);
 }
 
-public abstract class StoreFactory(IConfiguration configuration)
+public abstract class StoreFactory(IConfiguration configuration) : IService
 {
     public abstract Store CreateStore();
+}
+
+public abstract class SupervisorAdapter(IConfiguration configuration) : IService
+{
+    public abstract Task SendEventAsync(SupervisorEvent eventData);
+    public abstract Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler);
+}
+
+public enum SupervisorEventType
+{
+    Command,
+    Event,
+    Heartbeat
 }

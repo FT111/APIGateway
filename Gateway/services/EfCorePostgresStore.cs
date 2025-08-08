@@ -104,6 +104,11 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
         {
             return await _dbSet.FindAsync(key);
         }
+        
+        public async Task<List<T>> GetAllAsync()
+        {
+            return await _dbSet.AsNoTracking().ToListAsync();
+        }
 
         public async Task AddAsync(T model)
         {
@@ -134,11 +139,11 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
 
     }
     
-    private class EfCorePostgresRepoFactory : IRepoFactory
+    private class EfCorePostgresGatewayRepositories : IGatewayRepositories
     {
         private readonly DbContext _dbContext;
 
-        public EfCorePostgresRepoFactory(DbContext dbContext)
+        public EfCorePostgresGatewayRepositories(DbContext dbContext)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext), "DbContext cannot be null.");
         }
@@ -149,20 +154,20 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
         }
     }
     
-    public override IRepoFactory GetRepoFactory()
+    public override IGatewayRepositories GetRepoFactory()
     {
         if (_dbContext == null)
         {
             throw new InvalidOperationException("DbContext is not initialized.");
         }
-        return new EfCorePostgresRepoFactory(_dbContext);
+        return new EfCorePostgresGatewayRepositories(_dbContext);
     }
 }
 
 public class EfStoreFactory(IConfiguration configuration) : StoreFactory(configuration)
 {
     private readonly IConfiguration _configuration = configuration;
-
+    
     public override GatewayPluginContract.Store CreateStore()
     {
         return new EfCorePostgresStore(_configuration);

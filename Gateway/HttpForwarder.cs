@@ -1,10 +1,9 @@
-namespace Gateway.services;
+namespace Gateway;
 using System.Net;
 
 public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
 {
     private readonly HttpClient _client = new HttpClient();
-    
     
     public async Task ForwardAsync(GatewayPluginContract.RequestContext context)
     {
