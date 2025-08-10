@@ -50,7 +50,7 @@ public class PluginManager(IConfiguration configuration)
         }
     }
     
-    public void LoadInternalServices(string serviceNamespace = "Gateway.services")
+    internal void LoadInternalServices(string serviceNamespace = "Gateway.services")
     {
         // Use reflection to find all classes that implement IService in the specified namespace
         var serviceType = typeof(IService);
@@ -58,6 +58,8 @@ public class PluginManager(IConfiguration configuration)
         foreach (var assembly in assemblies)
         {
             var types = assembly.GetTypes();
+            // Add unregistered core services from the registrar
+            types = types.Concat(Registrar.UnregisteredCoreServices).ToArray();
             foreach (var type in types)
             {
                 if (!type.IsClass || type.IsAbstract || !serviceType.IsAssignableFrom(type) ||
@@ -65,6 +67,9 @@ public class PluginManager(IConfiguration configuration)
                 // TODO: Only give them their own configuration, e.g _configuration.GetSection("coreServices").
                 // Allows for multiple instances of the same service with different configurations
                 // Also only load services that are registered in the configuration
+                
+                // TODO: Don't instantiate core services from plugins in the main load func, instead register their type
+                // and conditionally instantiate them here
                 foreach (var serviceConfig in _configuration.GetSection("coreServices").GetChildren())
                 {
                     if (serviceConfig["identifier"] != "Core/"+type.Name)
@@ -113,6 +118,7 @@ public class PluginManager(IConfiguration configuration)
 public class PluginServiceRegistrar : IPluginServiceRegistrar
 {
     private readonly Dictionary<string, ServiceContainer<IService>> _services = new();
+    public readonly List<Type> UnregisteredCoreServices = [];
     public IEnumerable<T>  GetServicesByType<T>(ServiceTypes serviceType) where T : IService
     {
         return _services.Values
@@ -133,26 +139,17 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
         throw new KeyNotFoundException($"Service '{name}' not found.");
     }
 
-    public void RegisterService<T>(IPlugin? parentPlugin, T service, ServiceTypes serviceType) where T : IService
+    public void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService
     {
-        PluginManifest manifest;
-        if (parentPlugin == null)
+        // Core Services are only instantiated if used in the configuration
+        if (serviceType == ServiceTypes.Core)
         {
-            manifest = new PluginManifest
-            {
-                Name = "Core",
-                Version = 0.0,
-                Description = "Core services provided internally.",
-                Author = "Gateway",
-                Dependencies = []
-            };
+            UnregisteredCoreServices.Add(typeof(T));
+            return; 
         }
-        else
-        {
-            manifest = parentPlugin.GetManifest();
-        }
-        var identifier = manifest.Name + manifest.Version + "/" + typeof(T).Name ?? "";
         
+        var manifest = parentPlugin.GetManifest();
+        var identifier = manifest.Name + manifest.Version + "/" + typeof(T).Name ?? "";
         
         _services[identifier] = new ServiceContainer<IService>
         {
@@ -173,7 +170,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
     {
         PluginManifest manifest = new PluginManifest
         {
-            Name = "Core",
+            Name = "Internal",
             Version = 0.0,
             Description = "Core services provided internally.",
             Author = "Gateway",
@@ -193,7 +190,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
 
         Console.WriteLine($"Registered internal service: {serviceName} of type {ServiceTypes.Core}");
     }    
-    public void RegisterInternalServiceWithRuntimeType(Type serviceInstanceType, object serviceInstance, string componentName)
+    internal void RegisterInternalServiceWithRuntimeType(Type serviceInstanceType, object serviceInstance, string componentName)
     {
         // var method = typeof(PluginServiceRegistrar).GetMethod(nameof(RegisterInternalService));
         // var genericMethod = method?.MakeGenericMethod(serviceInstanceType);
