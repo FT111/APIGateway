@@ -76,14 +76,18 @@ public class PluginManager(IConfiguration configuration)
                     {
                         continue;
                     }
+
+                    var identifier = serviceConfig["Identifier"];
+                    if (serviceConfig.GetValue<string>("SubIdentifier") is not null)
+                    {
+                        identifier += "/" + serviceConfig.GetValue<string>("SubIdentifier");
+                    }
                     
                     var instance = Activator.CreateInstance(type, serviceConfig
                                        .GetSection("Configuration"))
                                    ?? throw new InvalidOperationException($"Failed to create instance of service {type.Name}.");
-                    Registrar.RegisterInternalServiceWithRuntimeType(type, instance, serviceConfig["Identifier"] 
+                    Registrar.RegisterInternalServiceWithRuntimeType(type, instance, identifier
                         ?? throw new InvalidOperationException("Service name not found in configuration."));
-                    Console.WriteLine($"Registered internal service: {type.Name} with identifier {serviceConfig["Identifier"]}");
-                    
                 }
             }
         }
@@ -148,6 +152,11 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             return; 
         }
         
+        if (_services.ContainsKey(typeof(T).Name))
+        {
+            throw new InvalidOperationException($"Service '{typeof(T).Name}' is already registered.");
+        }
+        
         var manifest = parentPlugin.GetManifest();
         var identifier = manifest.Name + manifest.Version + "/" + typeof(T).Name ?? "";
         
@@ -168,6 +177,11 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
     
     internal void RegisterInternalService(IService service, string serviceName)
     {
+        if (_services.ContainsKey(serviceName))
+        {
+            throw new InvalidOperationException($"Internal Service '{serviceName}' is already registered." +
+                                                $"Use SubIdentifiers to register multiple instances of the same core service type.");
+        }
         PluginManifest manifest = new PluginManifest
         {
             Name = "Internal",

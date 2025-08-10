@@ -17,8 +17,13 @@ public static class CoreServiceLoader
         Dictionary<string, string> serviceIdentifiers = new Dictionary<string, string>();
         foreach (var service in requiredServices)
         {
-            serviceIdentifiers.Add(service, coreServices.GetSection(service)["Identifier"]
-                ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
+            var identifier = coreServices.GetSection(service)["Identifier"];
+            if (coreServices.GetSection(service)["SubIdentifier"] is not null)
+            {
+                identifier += "/" + coreServices.GetSection(service)["SubIdentifier"];
+            }
+            serviceIdentifiers.Add(service, identifier
+                                            ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
         }
 
         var storeFactory = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["InstanceStore"]).Instance
