@@ -30,12 +30,9 @@ public static class CoreServiceLoader
             ?? throw new InvalidOperationException("StoreFactory service not found.");
         
         builder.Services.AddSingleton<StoreFactory>(storeFactory);
+        builder.Services.AddSingleton<IGatewayRepositories>(storeFactory.CreateStore().GetRepoFactory());
         
-        builder.Services.AddScoped<IGatewayRepositories>(sp =>
-        {
-            var store = sp.GetRequiredService<StoreFactory>().CreateStore();
-            return store.GetRepoFactory();
-        });
+
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance
             ?? throw new InvalidOperationException("SupervisorClient service not found."));
     }
