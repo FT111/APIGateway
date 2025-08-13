@@ -1,4 +1,5 @@
 using GatewayPluginContract;
+using Supervisor.auth;
 
 namespace Supervisor;
 
@@ -31,8 +32,8 @@ public static class CoreServiceLoader
         
         builder.Services.AddSingleton<StoreFactory>(storeFactory);
         builder.Services.AddSingleton<IGatewayRepositories>(storeFactory.CreateStore().GetRepoFactory());
+        builder.Services.AddSingleton<AuthHandler>(new AuthHandler(builder.Configuration));
         
-
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance
             ?? throw new InvalidOperationException("SupervisorClient service not found."));
     }
