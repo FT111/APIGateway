@@ -27,11 +27,16 @@ public static class CoreServiceLoader
                                             ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
         }
 
-        var storeFactory = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["InstanceStore"]).Instance
+        var gatewayStoreProvider = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["InstanceStore"]).Instance
             ?? throw new InvalidOperationException("StoreFactory service not found.");
+        var supervisorStoreProvider = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["SupervisorStore"]).Instance
+            ?? throw new InvalidOperationException("SupervisorStore service not found.");
         
-        builder.Services.AddSingleton<StoreFactory>(storeFactory);
-        builder.Services.AddSingleton<IGatewayRepositories>(storeFactory.CreateStore().GetRepoFactory());
+        
+        builder.Services.AddSingleton<InternalTypes.Repositories.Gateway>(new InternalTypes.Repositories.Gateway(
+            gatewayStoreProvider.CreateStore().GetRepoFactory()));
+        builder.Services.AddSingleton<InternalTypes.Repositories.Supervisor>(new InternalTypes.Repositories.Supervisor(
+            supervisorStoreProvider.CreateStore().GetRepoFactory()));
         builder.Services.AddSingleton<AuthHandler>(new AuthHandler(builder.Configuration));
         
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance

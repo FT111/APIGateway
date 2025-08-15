@@ -12,7 +12,7 @@ public class Routes
     {
         var route = app.MapGroup("/auth");
 
-        route.MapPost("/token", async (Models.TokenRequest creds, IGatewayRepositories data, AuthHandler auth) =>
+        route.MapPost("/token", async (Models.TokenRequest creds, InternalTypes.Repositories.Supervisor data, AuthHandler auth) =>
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var userRepo = data.GetRepo<User>();
