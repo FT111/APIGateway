@@ -5,7 +5,7 @@ using GatewayPluginContract.Entities;
 
 namespace Gateway;
 
-// Nain director
+// Main director
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager)
 {
     public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -18,6 +18,13 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
         .WithBackgroundQueue(localTaskQueue)
         .Build();
+
+    public TaskQueueHandler TaskQueueHandler { get; set; } = new TaskQueueHandler(store, localTaskQueue);
+    
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        await TaskQueueHandler.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
 
 public class GatewayBuild(Gateway gateway, SupervisorClient supervisorClient)
@@ -38,6 +45,7 @@ public class GatewayBuilder(IConfiguration configuration)
     public async Task<GatewayBuild> Build()
     {
         var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager);
+        gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));
             

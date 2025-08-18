@@ -4,7 +4,6 @@ namespace Gateway;
 
 public class TaskQueueHandler(StoreFactory storeProvider, LocalTaskQueue localTaskQueue)
 {
-
     internal async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var dataRepos = storeProvider.CreateStore().GetRepoFactory();

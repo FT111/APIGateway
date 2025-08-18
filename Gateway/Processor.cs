@@ -19,21 +19,21 @@ public class RequestPipeline
     private List<PipeProcessorContainer> _postProcessors;
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
-    private readonly IGatewayRepositories _gatewayRepositories;
+    private readonly IRepositories _repositories;
     private readonly IBackgroundQueue _backgroundQueue;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         IConfigurationsProvider configManager,
-        IGatewayRepositories gatewayRepositories,
+        IRepositories repositories,
         IBackgroundQueue backgroundQueue)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
         _forwarder = forwarder;
         _configManager = configManager;
-        _gatewayRepositories = gatewayRepositories;
+        _repositories = repositories;
         _backgroundQueue = backgroundQueue;
     }
 
@@ -47,7 +47,7 @@ public class RequestPipeline
         var tools = new ServiceContext
         {
             DeferredTasks = _backgroundQueue,
-            DataRepositories = _gatewayRepositories,
+            DataRepositories = _repositories,
             Identity = container.Processor.Identity,
         };
         try
@@ -154,31 +154,42 @@ public class RequestPipeline
         context.IsRestartRequested = false;
         context.IsForwardingFailed = false;
         
+        
         if (_configManager != null)
         {
-            var endpoints = _gatewayRepositories.GetRepo<Endpoint>();
+            var endpoints = _repositories.GetRepo<Endpoint>();
             context.Endpoint = endpoints.QueryAsync(e => context.Request.Path.ToString().StartsWith(e.Path))
                 .Result.FirstOrDefault();
 
             if (context.Endpoint == null)
             {
                 // Use fallback target
-                context.Target = _gatewayRepositories.GetRepo<Target>().QueryAsync(t => t.Fallback == true)
+                context.Target = _repositories.GetRepo<Target>().QueryAsync(t => t.Fallback == true)
                     .Result.FirstOrDefault() ?? throw new InvalidOperationException("No fallback target found. Cannot process request without a target.");
             }
             else
             {
                 context.Target = context.Endpoint.Target;
             }
-
-            var ip = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
-            var test = _gatewayRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == ip) && (dt.Namespace=="Lecti")).Result.FirstOrDefault();
             
             // Load configuration using the endpoint object
             context.PluginConfiguration = await _configManager.GetServiceConfigsAsync(context.Endpoint);
             var config = await _configManager.GetPipeConfigAsync(context.Endpoint);
-            UsePipeConfig(config);
+            UsePipeConfig(config); 
         }
+        context.LogRequest.SourceAddress = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "Unknown";
+        context.LogRequest.EndpointId = context.Endpoint?.Id ?? null;
+        LogRequestAsync(context);
+    }
+
+    private void LogRequestAsync(GatewayPluginContract.RequestContext context)
+    {
+        async Task LogRequest(CancellationToken token, IRepositories repositories)
+        {
+            await repositories.GetRepo<Request>().AddAsync(context.LogRequest);
+        }
+
+        _backgroundQueue.QueueTask(LogRequest);
     }
 }
 
@@ -188,7 +199,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
     private IBackgroundQueue? _backgroundQueue = null;
-    private IGatewayRepositories? _repoFactory = null;
+    private IRepositories? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
 
     // public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -256,9 +267,9 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithRepoProvider(IGatewayRepositories gatewayRepositories)
+    public RequestPipelineBuilder WithRepoProvider(IRepositories repositories)
     {
-        _repoFactory = gatewayRepositories;
+        _repoFactory = repositories;
         return this;
     }
     
