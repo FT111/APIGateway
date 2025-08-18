@@ -1,6 +1,7 @@
 using System.Net;
 using Gateway.services;
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
 
 namespace Gateway.routes;
 
@@ -47,6 +48,10 @@ public static class Proxy
                     {
                         Request = context.Request,
                         Response = context.Response,
+                        LogRequest = new Request()
+                        {
+                            Id = Guid.NewGuid()
+                        },
                         GatewayPathPrefix = prefix
                     };
                     

@@ -4,7 +4,7 @@ using GatewayPluginContract.Entities;
 using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
-using DeferredFunc = Func<CancellationToken, IGatewayRepositories, Task>;
+using DeferredFunc = Func<CancellationToken, IRepositories, Task>;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -48,7 +48,7 @@ public class PipeProcessorContainer
     public string Identifier { get; set; } = string.Empty;
 }
 
-public interface IDataRepository<T> where T : Entity
+public interface IDataRepository<T> where T : class
 {
     Task<T?> GetAsync(params object[] key);
     Task<List<T>> GetAllAsync();
@@ -58,14 +58,14 @@ public interface IDataRepository<T> where T : Entity
     Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate);
 }
 
-public interface IGatewayRepositories
+public interface IRepositories
 {
-    IDataRepository<T> GetRepo<T>() where T : Entity;
+    IDataRepository<T> GetRepo<T>() where T : class;
 }
 
 public abstract class Store(IConfiguration configuration)
 {
-    public abstract IGatewayRepositories GetRepoFactory();
+    public abstract IRepositories GetRepoFactory();
 }
 
 
@@ -98,6 +98,8 @@ public class RequestContext
     // public required string TargetPathBase { get; set; }
     public Endpoint? Endpoint { get; set; } = null!;
     public Target Target { get; set; } = null!;
+
+    public required Request LogRequest { get; set; }
     public string GatewayPathPrefix { get; set; } = string.Empty;
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
     public Dictionary<string, Dictionary<string, string>> SharedPluginContext { get; set; } = new();
@@ -114,7 +116,7 @@ public interface IBackgroundQueue : IService
 public class ServiceContext
 {
     public required IBackgroundQueue DeferredTasks { get; init; } 
-    public required IGatewayRepositories DataRepositories { get; init; }
+    public required IRepositories DataRepositories { get; init; }
     public required ServiceIdentity Identity { get; init; }
 }
 
@@ -170,7 +172,7 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
 {
     public required string Name { get; init; }
     public string? Description { get; init; }
-    public required Func<IGatewayRepositories, TModel> GetData { get; init; }
+    public required Func<IRepositories, TModel> GetData { get; init; }
 }
 
 public interface IPlugin

@@ -16,7 +16,9 @@ public partial class Endpoint : Entity
     public Guid PipeId { get; set; }
 
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
+    public virtual ICollection<Request> Requests { get; set; } = new List<Request>();
 
     public virtual Pipe Pipe { get; set; } = null!;
+
     public virtual Target Target { get; set; } = null!;
 }
