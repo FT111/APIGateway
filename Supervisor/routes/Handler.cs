@@ -7,5 +7,6 @@ public static class Handler
         // Register all routes here
         new Users(app);
         new Instances(app);
+        new Auth.Routes(app);
     }
 }

@@ -12,7 +12,7 @@ public class Instances
         var events = route.MapGroup("/events");
 
         events.MapPost("/{eventName}/{eventValue}",
-            async (string eventName, string eventValue, IRepositories data, SupervisorAdapter mqHandler) =>
+            async (HttpContext context,string eventName, string eventValue, SupervisorAdapter mqHandler) =>
             {
                 try
                 {
@@ -30,7 +30,7 @@ public class Instances
                 {
                     return Results.Problem(ex.Message, statusCode: 500);
                 }
-
+                
                 return Results.Ok($"Event '{eventName.ToLower()}' with value '{eventValue}' sent successfully.");
             }).RequireAuthorization();
     }
