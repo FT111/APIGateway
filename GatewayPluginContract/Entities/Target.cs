@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace GatewayPluginContract.Entities;
+﻿namespace GatewayPluginContract.Entities;
 
 public partial class Target : Entity
 {
@@ -14,5 +11,6 @@ public partial class Target : Entity
     public string? BasePath { get; set; }
 
     public bool Fallback { get; set; }
+
     public virtual ICollection<Endpoint> Endpoints { get; set; } = new List<Endpoint>();
 }

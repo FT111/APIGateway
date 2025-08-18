@@ -5,18 +5,18 @@ namespace Gateway.services;
 
 public class LocalTaskQueue : IBackgroundQueue
 {
-    private readonly Channel<Func<CancellationToken, IGatewayRepositories, Task>> _queue;
+    private readonly Channel<Func<CancellationToken, IRepositories, Task>> _queue;
 
     public LocalTaskQueue(IConfiguration configuration)
     {
-        _queue = Channel.CreateBounded<Func<CancellationToken, IGatewayRepositories, Task>>(new BoundedChannelOptions(100)
+        _queue = Channel.CreateBounded<Func<CancellationToken, IRepositories, Task>>(new BoundedChannelOptions(100)
         {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true
         });
     }
 
-    public void QueueTask(Func<CancellationToken, IGatewayRepositories, Task> task)
+    public void QueueTask(Func<CancellationToken, IRepositories, Task> task)
     {
         ArgumentNullException.ThrowIfNull(task);
 
@@ -28,7 +28,7 @@ public class LocalTaskQueue : IBackgroundQueue
        
     }
     
-    public async Task<Func<CancellationToken, IGatewayRepositories, Task>> DequeueAsync(CancellationToken cancellationToken = default)
+    public async Task<Func<CancellationToken, IRepositories, Task>> DequeueAsync(CancellationToken cancellationToken = default)
     {
         var result = await _queue.Reader.ReadAsync(cancellationToken);
         return result;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using GatewayPluginContract.Entities;
 
 namespace GatewayPluginContract.Entities;
 
@@ -15,7 +16,7 @@ public partial class Pipe : Entity
 
     public virtual ICollection<Endpoint> Endpoints { get; set; } = new List<Endpoint>();
 
-    public virtual ICollection<PipeService> Pipeservices { get; set; } = new List<PipeService>();
+    public virtual ICollection<PipeService> PipeServices { get; set; } = new List<PipeService>();
 
     public virtual ICollection<PluginConfig> PluginConfigs { get; set; } = new List<PluginConfig>();
 }

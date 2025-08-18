@@ -26,7 +26,7 @@ public class ConfigProvider : IConfigurationsProvider
     private ICollection<PipeService> _globalPipeServices = new List<PipeService>();
     private Dictionary<string, ICollection<PipeService>> _endpointPipeServices = new Dictionary<string, ICollection<PipeService>>();
     
-    private IGatewayRepositories? _dataRepos;
+    private IRepositories? _dataRepos;
     private PluginManager? _pluginManager;
 
     public ConfigProvider(IConfiguration configuration)
@@ -56,9 +56,9 @@ public class ConfigProvider : IConfigurationsProvider
         }
     }
 
-    public async Task InitialiseAsync(PluginManager pluginManager, IGatewayRepositories gatewayRepositories)
+    public async Task InitialiseAsync(PluginManager pluginManager, IRepositories repositories)
     {
-        _dataRepos = gatewayRepositories;
+        _dataRepos = repositories;
         _pluginManager = pluginManager;
         
         // Load initial configurations
@@ -89,7 +89,7 @@ public class ConfigProvider : IConfigurationsProvider
                 // Use cached endpoint-specific pipe services
                 if (!_endpointPipeServices.TryGetValue(endpoint.Path, out services))
                 {
-                    services = endpoint.Pipe?.Pipeservices;
+                    services = endpoint.Pipe?.PipeServices;
                 }
             }
         }
@@ -183,7 +183,7 @@ public class ConfigProvider : IConfigurationsProvider
             var globalPipe = _dataRepos.GetRepo<Pipe>().QueryAsync(pipe => pipe.Global == true).Result.FirstOrDefault();
             if (globalPipe != null)
             {
-                _globalPipeServices = globalPipe.Pipeservices ?? new List<PipeService>();
+                _globalPipeServices = globalPipe.PipeServices ?? new List<PipeService>();
             }
             
             // Load endpoint-specific pipe services
@@ -192,7 +192,7 @@ public class ConfigProvider : IConfigurationsProvider
             {
                 if (endpoint.Pipe != null)
                 {
-                    _endpointPipeServices[endpoint.Path] = endpoint.Pipe.Pipeservices ?? new List<PipeService>();
+                    _endpointPipeServices[endpoint.Path] = endpoint.Pipe.PipeServices ?? new List<PipeService>();
                 }
             }
             

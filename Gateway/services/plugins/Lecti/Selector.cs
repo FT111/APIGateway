@@ -32,7 +32,7 @@ public class Selector : IRequestProcessor
             context.Target.Host = availableVariations[variation];
 
             // Store the assigned variation in the scoped store
-            async Task Task(CancellationToken cancellationToken, IRepoFactory dataRepos)
+            async Task Task(CancellationToken cancellationToken, IRepositories dataRepos)
             {
                 var data = new PluginData
                 {

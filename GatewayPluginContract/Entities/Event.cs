@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace GatewayPluginContract.Entities;
+﻿namespace GatewayPluginContract.Entities;
 
 public partial class Event : Entity
 {
@@ -19,7 +16,7 @@ public partial class Event : Entity
 
     public bool IsWarning { get; set; }
 
-    public DateTime Addedat { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     public string MetaType { get; set; } = null!;
 

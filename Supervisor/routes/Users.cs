@@ -9,7 +9,7 @@ public class Users
     {
         var route = app.MapGroup("/users");
         
-        route.MapGet("/", async (IGatewayRepositories data) =>
+        route.MapGet("/", async (InternalTypes.Repositories.Supervisor data) =>
         {
             var users = await data.GetRepo<User>().GetAllAsync();
             return Results.Ok(users);

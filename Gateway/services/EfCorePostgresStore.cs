@@ -39,7 +39,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
             //             .HasForeignKey("pipe_id")
             //             .OnDelete(DeleteBehavior.Cascade);
             //         // modelBuilder.Entity<PipeService>().ToTable("pipeservices").HasOne<Pipe>().WithMany(p => p.Services).HasForeignKey("pipe_id").OnDelete(DeleteBehavior.Cascade);
-            //         modelBuilder.Entity<PluginConfig>().ToTable("pluginconfigs")
+            //         modelBuilder.Entity<PluginConfig>().ToTable("PluginConfigs")
             //             .HasOne<Pipe>().WithMany(p => p.Configs)
             //             .HasForeignKey("pipe_id")  // Add this line to specify the foreign key column name
             //             .OnDelete(DeleteBehavior.Cascade);
@@ -61,7 +61,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
     
     public EfCorePostgresStore(IConfiguration configuration) : base(configuration)
     {
-        var connectionString = configuration.GetConnectionString("Postgres") ??
+        var connectionString = configuration.GetConnectionString("default") ??
                                throw new InvalidOperationException("Connection string 'EfCore' not found in configuration.");
         var optionsBuilder = new DbContextOptionsBuilder<EfDbContext>()
             .UseNpgsql(connectionString, npgsqlOptions =>
@@ -89,7 +89,7 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
 
     }
 
-    private class DataRepo<T> : IDataRepository<T> where T : Entity
+    private class DataRepo<T> : IDataRepository<T> where T : class
     {
         private readonly DbSet<T> _dbSet;
         private readonly DbContext _dbContext;
@@ -139,28 +139,28 @@ public class EfCorePostgresStore : GatewayPluginContract.Store
 
     }
     
-    private class EfCorePostgresGatewayRepositories : IGatewayRepositories
+    private class EfCorePostgresRepositories : IRepositories
     {
         private readonly DbContext _dbContext;
 
-        public EfCorePostgresGatewayRepositories(DbContext dbContext)
+        public EfCorePostgresRepositories(DbContext dbContext)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext), "DbContext cannot be null.");
         }
 
-        public IDataRepository<T> GetRepo<T>() where T : Entity
+        public IDataRepository<T> GetRepo<T>() where T : class
         {
             return new DataRepo<T>(_dbContext);
         }
     }
     
-    public override IGatewayRepositories GetRepoFactory()
+    public override IRepositories GetRepoFactory()
     {
         if (_dbContext == null)
         {
             throw new InvalidOperationException("DbContext is not initialized.");
         }
-        return new EfCorePostgresGatewayRepositories(_dbContext);
+        return new EfCorePostgresRepositories(_dbContext);
     }
 }
 

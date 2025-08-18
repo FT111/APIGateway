@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace GatewayPluginContract.Entities;
+﻿namespace GatewayPluginContract.Entities;
 
 public partial class PipeService : Entity
 {
@@ -16,6 +13,6 @@ public partial class PipeService : Entity
     public long Order { get; set; }
 
     public virtual Pipe Pipe { get; set; } = null!;
-
-    public ServiceFailurePolicies FailurePolicy;
+    
+    public ServiceFailurePolicies FailurePolicy { get; set; }
 }
