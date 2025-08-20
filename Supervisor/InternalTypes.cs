@@ -1,5 +1,6 @@
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Supervisor;
 
@@ -7,16 +8,18 @@ public static class InternalTypes
 {
     public static class Repositories
     {
-        public abstract class InternalRepositoryProviderWrapper(IRepositories repositories)
+        public class InternalRepositoryProviderWrapper(GatewayPluginContract.Repositories repositories)
         {
-            public IDataRepository<T> GetRepo<T>() where T : Entity
+            public IDataRepository<T> GetRepo<T>() where T : class
             {
                 return repositories.GetRepo<T>();
             }
+            
+            public DbContext Context => repositories.Context;
         }
         
-        public class Gateway(IRepositories repositories) : InternalRepositoryProviderWrapper(repositories);
-        public class Supervisor(IRepositories repositories) : InternalRepositoryProviderWrapper(repositories);
+        public class Gateway(GatewayPluginContract.Repositories repositories) : InternalRepositoryProviderWrapper(repositories);
+        public class Supervisor(GatewayPluginContract.Repositories repositories) : InternalRepositoryProviderWrapper(repositories);
 
     }
     // Marker interface for DI
