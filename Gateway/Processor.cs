@@ -19,14 +19,14 @@ public class RequestPipeline
     private List<PipeProcessorContainer> _postProcessors;
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
-    private readonly IRepositories _repositories;
+    private readonly Repositories _repositories;
     private readonly IBackgroundQueue _backgroundQueue;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         IConfigurationsProvider configManager,
-        IRepositories repositories,
+        Repositories repositories,
         IBackgroundQueue backgroundQueue)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
@@ -109,45 +109,45 @@ public class RequestPipeline
     public async Task ProcessAsync(GatewayPluginContract.RequestContext context, HttpContext httpContext)
     {
         try
-        {
+        { 
             await SetupPipeline(context);
+
+            foreach (var processor in _preProcessors)
+            {
+                Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
+                await UseProcessor(processor, context);
+                await HandleContextRequests(context, httpContext);
+            }
+            
+            if (_forwarder == null)
+            {
+                throw new InvalidOperationException("Forwarder is not set. Cannot process request without a forwarder.");
+            }
+            await _forwarder.ForwardAsync(context);
+
+            foreach (var processor in _postProcessors)
+            {
+                Console.WriteLine($"Processing post-processor: {processor.Identifier}");
+                await UseProcessor(processor, context);
+                await HandleContextRequests(context, httpContext);
+            }
+
+            if (context.IsForwardingFailed)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
+            }
         }
         catch (Exceptions.PipelineEndedException)
         {
-            return;
+            
         }
         catch (Exception)
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
-            return;
         }
-
-        foreach (var processor in _preProcessors)
-        {
-            Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
-            await UseProcessor(processor, context);
-            await HandleContextRequests(context, httpContext);
-        }
-        
-        if (_forwarder == null)
-        {
-            throw new InvalidOperationException("Forwarder is not set. Cannot process request without a forwarder.");
-        }
-        await _forwarder.ForwardAsync(context);
-
-        foreach (var processor in _postProcessors)
-        {
-            Console.WriteLine($"Processing post-processor: {processor.Identifier}");
-            await UseProcessor(processor, context);
-            await HandleContextRequests(context, httpContext);
-        }
-
-        if (context.IsForwardingFailed)
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
-        }
+        LogRequestAsync(context);
     }
-
+    
     private async Task SetupPipeline(RequestContext context)
     {
         // Sets ephemeral state to initial values
@@ -179,12 +179,13 @@ public class RequestPipeline
         }
         context.LogRequest.SourceAddress = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "Unknown";
         context.LogRequest.EndpointId = context.Endpoint?.Id ?? null;
-        LogRequestAsync(context);
     }
 
     private void LogRequestAsync(GatewayPluginContract.RequestContext context)
     {
-        async Task LogRequest(CancellationToken token, IRepositories repositories)
+        context.LogRequest.RoutedTargetId = context.Target.Id;
+        context.LogRequest.HttpStatus = context.Response.StatusCode;
+        async Task LogRequest(CancellationToken token, Repositories repositories)
         {
             await repositories.GetRepo<Request>().AddAsync(context.LogRequest);
         }
@@ -199,7 +200,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
     private IBackgroundQueue? _backgroundQueue = null;
-    private IRepositories? _repoFactory = null;
+    private Repositories? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
 
     // public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -267,7 +268,7 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithRepoProvider(IRepositories repositories)
+    public RequestPipelineBuilder WithRepoProvider(Repositories repositories)
     {
         _repoFactory = repositories;
         return this;
