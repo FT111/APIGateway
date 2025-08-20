@@ -1,7 +1,10 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Supervisor.auth;
 using Supervisor.routes;
+using Newtonsoft.Json;
 
 namespace Supervisor;
 
@@ -12,7 +15,14 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
+        
         CoreServiceLoader.LoadFromConfiguration(builder);
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        });
 
         builder.Services.AddAuthentication(auth =>
         {
