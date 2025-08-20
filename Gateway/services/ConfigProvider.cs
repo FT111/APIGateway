@@ -26,7 +26,7 @@ public class ConfigProvider : IConfigurationsProvider
     private ICollection<PipeService> _globalPipeServices = new List<PipeService>();
     private Dictionary<string, ICollection<PipeService>> _endpointPipeServices = new Dictionary<string, ICollection<PipeService>>();
     
-    private IRepositories? _dataRepos;
+    private Repositories? _dataRepos;
     private PluginManager? _pluginManager;
 
     public ConfigProvider(IConfiguration configuration)
@@ -56,7 +56,7 @@ public class ConfigProvider : IConfigurationsProvider
         }
     }
 
-    public async Task InitialiseAsync(PluginManager pluginManager, IRepositories repositories)
+    public async Task InitialiseAsync(PluginManager pluginManager, Repositories repositories)
     {
         _dataRepos = repositories;
         _pluginManager = pluginManager;

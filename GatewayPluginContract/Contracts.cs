@@ -1,10 +1,11 @@
 ﻿using System.IO.Pipelines;
 using System.Linq.Expressions;
 using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace GatewayPluginContract;
-using DeferredFunc = Func<CancellationToken, IRepositories, Task>;
+using DeferredFunc = Func<CancellationToken, Repositories, Task>;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -58,14 +59,16 @@ public interface IDataRepository<T> where T : class
     Task<IEnumerable<T>> QueryAsync(Expression<Func<T, bool>> predicate);
 }
 
-public interface IRepositories
+public abstract class Repositories
 {
-    IDataRepository<T> GetRepo<T>() where T : class;
+    public abstract required DbContext Context { get; init; }
+    public abstract IDataRepository<T> GetRepo<T>() where T : class;
 }
 
-public abstract class Store(IConfiguration configuration)
+public abstract class Store
 {
-    public abstract IRepositories GetRepoFactory();
+    public abstract Repositories GetRepoFactory();
+    public abstract required DbContext Context { get; init; }
 }
 
 
@@ -116,7 +119,7 @@ public interface IBackgroundQueue : IService
 public class ServiceContext
 {
     public required IBackgroundQueue DeferredTasks { get; init; } 
-    public required IRepositories DataRepositories { get; init; }
+    public required Repositories DataRepositories { get; init; }
     public required ServiceIdentity Identity { get; init; }
 }
 
@@ -172,7 +175,7 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
 {
     public required string Name { get; init; }
     public string? Description { get; init; }
-    public required Func<IRepositories, TModel> GetData { get; init; }
+    public required Func<Repositories, TModel> GetData { get; init; }
 }
 
 public interface IPlugin

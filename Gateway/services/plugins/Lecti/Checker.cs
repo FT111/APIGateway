@@ -30,7 +30,7 @@ public class Checker : IRequestProcessor
             var random = new Random();
             var newVariation = availableVariations[random.Next(0, availableVariations.Count)];
 
-            async Task Task(CancellationToken cancellationToken, IRepositories dataRepos)
+            async Task Task(CancellationToken cancellationToken, Repositories dataRepos)
             {
                 var data = new PluginData
                 {
