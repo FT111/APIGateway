@@ -1,6 +1,6 @@
 namespace GatewayPluginContract.Entities;
 
-public partial class Request
+public partial class Request : Entity
 {
     public Guid Id { get; set; }
     public string? SourceAddress { get; set; }
