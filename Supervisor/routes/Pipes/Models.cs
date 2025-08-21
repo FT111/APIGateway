@@ -1,0 +1,43 @@
+using System.Linq.Expressions;
+using GatewayPluginContract.Entities;
+using Endpoint = GatewayPluginContract.Entities.Endpoint;
+
+namespace Supervisor.routes.Pipes;
+
+public static class Models
+{
+    public class PipeResponse
+    {
+        public Guid Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public List<PipeEndpointResponse> Endpoints { get; set; } = null!; 
+    }
+
+    public class PipeEndpointResponse
+    {
+        public Guid Id { get; set; }
+        public string Path { get; set; } = null!;
+        public string? TargetPathPrefix { get; set; }
+        public Guid TargetId { get; set; }
+    }
+    
+}
+
+public static class Mapping
+{
+    public static readonly Expression<Func<Pipe, Models.PipeResponse>> PipeToResponse = pipe => new Models.PipeResponse
+    {
+        Id = pipe.Id,
+        CreatedAt = pipe.CreatedAt,
+        UpdatedAt = pipe.UpdatedAt,
+        Endpoints = pipe.Endpoints.Select(endpoint => new Models.PipeEndpointResponse
+        {
+            Id = endpoint.Id,
+            Path = endpoint.Path,
+            TargetPathPrefix = endpoint.TargetPathPrefix,
+            TargetId = endpoint.TargetId
+        }).ToList()
+    };
+}
+

@@ -8,9 +8,9 @@ public partial class Pipe : Entity
 {
     public Guid Id { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; init; }
 
-    public DateTime UpdatedAt { get; set; }
+    public DateTime UpdatedAt { get; init; }
 
     public bool Global { get; set; }
 
