@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using GatewayPluginContract.Attributes;
 using GatewayPluginContract.Entities;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
@@ -9,7 +10,9 @@ public static class Models
     public class PipeResponse
     {
         public Guid Id { get; set; }
+        [Sortable]
         public DateTime CreatedAt { get; set; }
+        [Sortable]
         public DateTime UpdatedAt { get; set; }
         public List<PipeEndpointResponse> Endpoints { get; set; } = null!; 
     }

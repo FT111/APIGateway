@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using GatewayPluginContract.Attributes;
 using GatewayPluginContract.Entities;
 
 namespace GatewayPluginContract.Entities;
@@ -8,8 +9,10 @@ public partial class Pipe : Entity
 {
     public Guid Id { get; set; }
 
+    [Sortable]
     public DateTime CreatedAt { get; init; }
 
+    [Sortable]
     public DateTime UpdatedAt { get; init; }
 
     public bool Global { get; set; }

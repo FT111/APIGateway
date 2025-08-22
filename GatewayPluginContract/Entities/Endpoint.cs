@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using GatewayPluginContract.Attributes;
 
 namespace GatewayPluginContract.Entities;
 
@@ -7,6 +8,7 @@ public partial class Endpoint : Entity
 {
     public Guid Id { get; set; }
 
+    [Queryable]
     public string Path { get; set; } = null!;
 
     public string? TargetPathPrefix { get; set; }
