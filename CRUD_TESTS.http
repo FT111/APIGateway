@@ -1,0 +1,170 @@
+# API Gateway CRUD Endpoints Test
+# This file demonstrates how to test the implemented CRUD endpoints
+# Use with REST clients like Postman, Insomnia, or VS Code REST Client
+
+@baseUrl = http://localhost:5000
+@token = your_jwt_token_here
+
+### Get authentication token
+POST {{baseUrl}}/auth/token
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "test"
+}
+
+### Get all users
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+
+### Create a new user
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123",
+  "role": "user"
+}
+
+### Get all targets
+GET {{baseUrl}}/targets
+Authorization: Bearer {{token}}
+
+### Create a new target
+POST {{baseUrl}}/targets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "schema": "https",
+  "host": "api.example.com",
+  "basePath": "/v1",
+  "fallback": false
+}
+
+### Get all pipes
+GET {{baseUrl}}/pipes
+Authorization: Bearer {{token}}
+
+### Create a new pipe
+POST {{baseUrl}}/pipes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "global": false
+}
+
+### Get all endpoints
+GET {{baseUrl}}/endpoints
+Authorization: Bearer {{token}}
+
+### Create a new endpoint
+POST {{baseUrl}}/endpoints
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "path": "/api/test/*",
+  "targetPathPrefix": "/v1",
+  "targetId": "replace-with-target-guid",
+  "pipeId": "replace-with-pipe-guid"
+}
+
+### Get all events
+GET {{baseUrl}}/events
+Authorization: Bearer {{token}}
+
+### Get filtered events (non-dismissed warnings)
+GET {{baseUrl}}/events?isDismissed=false&isWarning=true
+Authorization: Bearer {{token}}
+
+### Create a new event
+POST {{baseUrl}}/events
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Test Event",
+  "description": "This is a test event",
+  "isWarning": false,
+  "metaType": "info",
+  "metaData": "{\"source\": \"test\"}"
+}
+
+### Get all plugin data
+GET {{baseUrl}}/plugin-data
+Authorization: Bearer {{token}}
+
+### Create plugin data
+POST {{baseUrl}}/plugin-data
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "namespace": "test-plugin",
+  "key": "config-key",
+  "value": "config-value",
+  "type": "string",
+  "category": "configuration"
+}
+
+### Get plugin data by namespace
+GET {{baseUrl}}/plugin-data/namespace/test-plugin
+Authorization: Bearer {{token}}
+
+### Get all plugin configs
+GET {{baseUrl}}/plugin-configs
+Authorization: Bearer {{token}}
+
+### Create plugin config
+POST {{baseUrl}}/plugin-configs
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "key": "timeout",
+  "value": "30000",
+  "namespace": "http-client",
+  "pipeId": "replace-with-pipe-guid",
+  "internal": false
+}
+
+### Get all pipe services
+GET {{baseUrl}}/pipe-services
+Authorization: Bearer {{token}}
+
+### Create pipe service
+POST {{baseUrl}}/pipe-services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "pipeId": "replace-with-pipe-guid",
+  "pluginVersion": "1.0.0",
+  "pluginTitle": "test-plugin",
+  "serviceTitle": "test-service",
+  "order": 1,
+  "failurePolicy": 0
+}
+
+### Get all requests (with pagination)
+GET {{baseUrl}}/requests?page=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### Create a request log
+POST {{baseUrl}}/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sourceAddress": "192.168.1.100",
+  "endpointId": "replace-with-endpoint-guid"
+}
+
+### Cleanup old requests (older than 7 days)
+DELETE {{baseUrl}}/requests/cleanup?olderThan=2024-01-01T00:00:00Z
+Authorization: Bearer {{token}}

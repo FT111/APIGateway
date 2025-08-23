@@ -2,7 +2,7 @@ using GatewayPluginContract.Attributes;
 
 namespace GatewayPluginContract.Entities;
 
-public partial class Request
+public partial class Request : Entity
 {
     public Guid Id { get; set; }
     [Queryable]
