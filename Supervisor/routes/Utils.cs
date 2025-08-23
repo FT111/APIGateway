@@ -10,7 +10,7 @@ public static class Utils
     public class ResponseStructure<T> where T : class
     {
         public Dictionary<string, object> Meta { get; set; } = new();
-        public IEnumerable<T> Data { get; set; } = null!;
+        public object Data { get; set; } = null!;
         private Paginator<T> Paginator { get; set; } = null!;
         
         public static ValueTask<ResponseStructure<T>> BindAsync(HttpContext context, ParameterInfo parameter)
@@ -47,7 +47,7 @@ public static class Utils
             }.ToString() ?? string.Empty;
         }
         
-        public ResponseStructure<T> WithData(IEnumerable<T> data)
+        public ResponseStructure<T> WithData(object data)
         {
             Data = data;
             return this;
@@ -55,7 +55,11 @@ public static class Utils
 
         public async Task<ResponseStructure<T>> WithPagination()
         {
-            Data = await Paginator.ApplyAsync(Data.AsQueryable());
+            if (Data is not IQueryable<T> queryableData)
+            {
+                throw new InvalidOperationException("Data must be of type IQueryable<T> to apply pagination.");
+            }
+            Data = await Paginator.ApplyAsync(queryableData.AsQueryable());
             return this;
         }
     }
@@ -154,8 +158,8 @@ public static class Utils
             {
                 handledResponse = await ApplyPagination(ApplySorting(ApplyFiltering(query))).ToListAsync();
             }
-            
-            var totalItems = await query.CountAsync();
+
+            var totalItems = handledResponse.Count();
             var totalPages = (int)Math.Ceiling((double)totalItems / Limit);
             ResponseMeta["total"] = totalItems;
             ResponseMeta["pages"] = totalPages;
