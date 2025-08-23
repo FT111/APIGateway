@@ -52,14 +52,27 @@ public static class Utils
             Data = data;
             return this;
         }
+        
+        public ResponseStructure<T> WithMetaData(string key, object value)
+        {
+            Meta[key] = value;
+            return this;
+        }
 
         public async Task<ResponseStructure<T>> WithPagination()
         {
-            if (Data is not IQueryable<T> queryableData)
+            if (Data is not IAsyncEnumerable<T> && Data is not IQueryable<T>)
             {
-                throw new InvalidOperationException("Data must be of type IQueryable<T> to apply pagination.");
+                throw new InvalidOperationException("Data must be of type IQueryable<T> or IAsyncEnumerable<T> to apply pagination.");
             }
-            Data = await Paginator.ApplyAsync(queryableData.AsQueryable());
+            try
+            {
+                Data = await Paginator.ApplyAsync((IQueryable<T>)Data);
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Failed to apply pagination: {e.Message}", e);
+            }
             return this;
         }
     }
