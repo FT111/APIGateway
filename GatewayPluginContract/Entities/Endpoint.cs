@@ -12,6 +12,10 @@ public partial class Endpoint : Entity
     public string Path { get; set; } = null!;
 
     public string? TargetPathPrefix { get; set; }
+    
+    public DateTime CreatedAt { get; set; }
+    
+    public DateTime UpdatedAt { get; set; }
 
     public Guid TargetId { get; set; }
 
@@ -22,5 +26,5 @@ public partial class Endpoint : Entity
 
     public virtual Pipe Pipe { get; set; } = null!;
 
-    public virtual Target Target { get; set; } = null!;
+    public virtual Target? Target { get; set; } = null!;
 }

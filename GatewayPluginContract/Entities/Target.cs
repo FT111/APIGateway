@@ -16,5 +16,7 @@ public partial class Target : Entity
 
     public bool Fallback { get; set; }
     
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
     public virtual ICollection<Endpoint> Endpoints { get; set; } = new List<Endpoint>();
 }

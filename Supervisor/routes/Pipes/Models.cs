@@ -14,6 +14,7 @@ public static class Models
         public DateTime CreatedAt { get; set; }
         [Sortable]
         public DateTime UpdatedAt { get; set; }
+        public int ServiceCount { get; set; }
         public List<PipeEndpointResponse> Endpoints { get; set; } = null!; 
     }
 
@@ -39,6 +40,7 @@ public static class Mapping
         Id = pipe.Id,
         CreatedAt = pipe.CreatedAt,
         UpdatedAt = pipe.UpdatedAt,
+        ServiceCount = pipe.PipeServices.Count,
         Endpoints = pipe.Endpoints.Select(endpoint => new Models.PipeEndpointResponse
         {
             Id = endpoint.Id,

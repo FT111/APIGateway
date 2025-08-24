@@ -13,6 +13,7 @@ public class Routes
         {
             var pipes = data.Context.Set<Pipe>()
                 .Include(p => p.Endpoints)
+                .Include(p => p.PipeServices)
                 .AsNoTracking()
                 .Select(Mapping.ToResponse);
             var paginatedPipes = await res.WithData(pipes).WithPagination();

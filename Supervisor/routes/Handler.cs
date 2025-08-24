@@ -12,5 +12,6 @@ public static class Handler
         new Auth.Routes(app);
         new Targets.Routes(app);
         new Pipes.Routes(app);
+        new Endpoints.Routes(app);
     }
 }
