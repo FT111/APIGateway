@@ -24,12 +24,17 @@ public static class Models
         public string? TargetPathPrefix { get; set; }
         public Guid TargetId { get; set; }
     }
+
+    // public class CreatePipeRequest
+    // {
+    //     public 
+    // }
     
 }
 
 public static class Mapping
 {
-    public static readonly Expression<Func<Pipe, Models.PipeResponse>> PipeToResponse = pipe => new Models.PipeResponse
+    public static readonly Expression<Func<Pipe, Models.PipeResponse>> ToResponse = pipe => new Models.PipeResponse
     {
         Id = pipe.Id,
         CreatedAt = pipe.CreatedAt,

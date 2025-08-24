@@ -12,7 +12,7 @@ public class Routes
     {
         var route = app.MapGroup("/auth");
 
-        route.MapPost("/token", async (Models.TokenRequest creds, InternalTypes.Repositories.Supervisor data, AuthHandler auth) =>
+        route.MapPost("/token", async (Models.TokenRequest creds, InternalTypes.Repositories.Supervisor data, AuthHandler auth, Utils.ResponseStructure<Models.TokenResponse> res) =>
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var userRepo = data.GetRepo<User>();
@@ -27,7 +27,6 @@ public class Routes
             {
                 new (System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new (System.Security.Claims.ClaimTypes.Name, user.Username),
-                new (System.Security.Claims.ClaimTypes.Role, user.Role)
             };
 
             var tokenSecondsExpiry = app.Configuration["Auth:Expiry"];
@@ -47,11 +46,12 @@ public class Routes
             var jwtToken = tokenHandler.CreateToken(tokenDescriptor);
             var tokenString = tokenHandler.WriteToken(jwtToken);
 
-            return Results.Ok(new
+            var response = new Models.TokenResponse
             {
                 Token = tokenString,
-                Expires = tokenDescriptor.Expires?.ToString("o"),
-            });
+                ExpiresAt = tokenDescriptor.Expires?.ToString("o") ?? throw new InvalidOperationException("Token expiry not set."),
+            };
+            return Results.Ok(res.WithData(response));
         });
     }
 }

@@ -1,3 +1,5 @@
+using GatewayPluginContract.Attributes;
+
 namespace Supervisor.routes.Targets;
 
 public static class Models
@@ -5,11 +7,15 @@ public static class Models
     public class TargetResponse
     {
         public Guid Id { get; set; }
+        
+        [Queryable]
+        [Sortable]
         public string Url { get; set; } = null!;
         public string Scheme { get; set; } = null!;
         public string Host { get; set; } = null!;
         public string? Path { get; set; } = null!;
         public bool Fallback { get; set; }
+        [Sortable]
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

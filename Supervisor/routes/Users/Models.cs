@@ -1,11 +1,17 @@
+using GatewayPluginContract.Attributes;
+
 namespace Supervisor.routes.Users;
 
 public static class Models
 {
     public class UserResponse
     {
+        [Queryable]
         public Guid Id { get; set; }
+        [Queryable]
+        [Sortable]
         public string Username { get; set; } = null!;
+        [Sortable]
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

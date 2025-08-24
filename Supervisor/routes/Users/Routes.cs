@@ -46,7 +46,8 @@ public class Routes
             
             var resUser = Mapping.ToResponse.Compile()(newUser);
             await data.GetRepo<User>().AddAsync(newUser);
-            return Results.Created($"/users/{resUser.Id}", res.WithData(resUser));
+            var mappedResponse = Mapping.ToResponse.Compile()(newUser);
+            return Results.Created($"/users/{resUser.Id}", res.WithData(mappedResponse));
         });
         route.MapPut("/{id:guid}", async (Guid id, User user, InternalTypes.Repositories.Supervisor data) =>
         {
