@@ -19,4 +19,5 @@ public partial class Target : Entity
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public virtual ICollection<Endpoint> Endpoints { get; set; } = new List<Endpoint>();
+    public virtual ICollection<Deployment> Deployments { get; set; } = new List<Deployment>();
 }

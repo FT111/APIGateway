@@ -1,3 +1,5 @@
+using GatewayPluginContract.Entities;
+
 namespace Supervisor.routes.Endpoints;
 
 public static class Models
@@ -9,6 +11,8 @@ public static class Models
         public string? TargetPathPrefix { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        
+        public Deployment Deployment { get; set; } = null!;
         public required Targets.Models.TargetResponse? Target { get; set; }
     }
     
