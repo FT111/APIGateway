@@ -12,7 +12,7 @@ public static class Models
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         
-        public Deployment Deployment { get; set; } = null!;
+        public Deployments.Models.DeploymentResponse Deployment { get; set; } = null!;
         public required Targets.Models.TargetResponse? Target { get; set; }
     }
     
@@ -20,8 +20,9 @@ public static class Models
     {
         public required string Path { get; init; }
         public string? TargetPathPrefix { get; init; }
-        public required Guid TargetId { get; init; }
+        public Guid TargetId { get; init; }
         public required Guid PipeId { get; init; }
+        public required Guid DeploymentId { get; init; }
     }
     
 }
@@ -35,6 +36,15 @@ public static class Mapping
         TargetPathPrefix = endpoint.TargetPathPrefix,
         CreatedAt = endpoint.CreatedAt,
         UpdatedAt = endpoint.UpdatedAt,
+        Deployment = new Deployments.Models.DeploymentResponse
+        {
+            Id = endpoint.Deployment.Id,
+            Title = endpoint.Deployment.Title,
+            CreatedAt = endpoint.Deployment.CreatedAt,
+            UpdatedAt = endpoint.Deployment.UpdatedAt,
+            StatusTitle = endpoint.Deployment.Status.Title,
+            StatusHexColour = endpoint.Deployment.Status.HexColour
+        },
         Target = endpoint.Target!=null ? new Targets.Models.TargetResponse
         {
             Id = endpoint.Target.Id,

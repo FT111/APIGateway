@@ -10,6 +10,8 @@ public class Routes
         {
             var endpoints = data.Context.Set<Endpoint>()
                 .Include(e => e.Target)
+                .Include(e => e.Deployment)
+                .Include(e => e.Deployment.Status)
                 .AsNoTracking()
                 .Select(Mapping.ToResponse); 
             return await res.WithData(endpoints).WithPagination();
@@ -17,12 +19,18 @@ public class Routes
 
         app.MapPost("/endpoints", async (HttpContext context, InternalTypes.Repositories.Gateway data, Models.CreateEndpointRequest endpoint, Utils.ResponseStructure<Models.EndpointResponse> res) =>
         {
+            // Validate endpoint is linked to a valid deployment
+            var linkedDeployment = await data.Context.Set<GatewayPluginContract.Entities.Deployment>()
+                .FirstOrDefaultAsync(d => d.Id == endpoint.DeploymentId);
+            if (linkedDeployment == null) return Results.BadRequest("Invalid DeploymentId");
+            
             var endpointEntity = new Endpoint
             {
                 Id = Guid.NewGuid(),
                 Path = endpoint.Path,
                 TargetPathPrefix = endpoint.TargetPathPrefix,
                 TargetId = endpoint.TargetId,
+                Deployment = linkedDeployment,
                 PipeId = endpoint.PipeId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
