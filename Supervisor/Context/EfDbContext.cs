@@ -176,6 +176,20 @@ public partial class EfDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("plugin_configs_pipes_id_fk");
         });
+        
+        modelBuilder.Entity<DeploymentStatus>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("deployment_statuses_pk");
+
+            entity.ToTable("deployment_statuses");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            
+            entity.Property(e => e.HexColour).HasColumnName("hex_colour");
+            entity.Property(e => e.Title).HasColumnName("title");
+        });
 
         modelBuilder.Entity<PluginData>(entity =>
         {
@@ -240,7 +254,7 @@ public partial class EfDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("deployments_pk");
 
-            entity.ToTable("deployments", "supervisor");
+            entity.ToTable("deployments", "public");
 
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
@@ -265,13 +279,26 @@ public partial class EfDbContext : DbContext
                 .HasForeignKey(e => e.SchemaId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("deployments_schemas_id_fk");
+            
+            entity.HasOne(e => e.Status)
+                .WithMany(s => s.Deployments)
+                .HasForeignKey(e => e.StatusId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("deployments_deployment_statuses_id_fk");
+            
+            entity.HasMany(e => e.Endpoints)
+                .WithOne(ep => ep.Deployment)
+                .HasForeignKey("DeploymentId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("endpoints_deployments_id_fk");
+            
         });
         
         modelBuilder.Entity<SchemaEndpoint>(entity =>
         {
             entity.HasKey(e => new { e.SchemaId }).HasName("schema_endpoints_pk");
 
-            entity.ToTable("schema_endpoints", "supervisor");
+            entity.ToTable("schema_endpoints", "public");
 
             entity.Property(e => e.SchemaId).HasColumnName("schema_id");
             entity.Property(e => e.Path).HasColumnName("path");
@@ -286,7 +313,7 @@ public partial class EfDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("schemas_pk");
 
-            entity.ToTable("schemas", "supervisor");
+            entity.ToTable("schemas", "public");
 
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
