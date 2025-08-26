@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using GatewayPluginContract.Entities;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
-namespace Supervisor.Context;
+namespace Gateway.Context;
 
 public partial class EfDbContext : DbContext
 {
@@ -210,6 +210,24 @@ public partial class EfDbContext : DbContext
             entity.Property(e => e.Value)
                 .HasColumnType("character varying")
                 .HasColumnName("value");
+        });
+        modelBuilder.Entity<Instance>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("instances_pk");
+
+            entity.ToTable("instances");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.Status)
+                .HasColumnName("status");
+            entity.Property(e => e.PublicKey)
+                .HasColumnName("public_key");
         });
 
         modelBuilder.Entity<Request>(entity =>

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Gateway.Migrations;
 using GatewayPluginContract;
 // using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -177,6 +176,20 @@ public partial class EfDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("plugin_configs_pipes_id_fk");
         });
+        
+        modelBuilder.Entity<DeploymentStatus>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("deployment_statuses_pk");
+
+            entity.ToTable("deployment_statuses");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            
+            entity.Property(e => e.HexColour).HasColumnName("hex_colour");
+            entity.Property(e => e.Title).HasColumnName("title");
+        });
 
         modelBuilder.Entity<PluginData>(entity =>
         {
@@ -197,6 +210,24 @@ public partial class EfDbContext : DbContext
             entity.Property(e => e.Value)
                 .HasColumnType("character varying")
                 .HasColumnName("value");
+        });
+        modelBuilder.Entity<Instance>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("instances_pk");
+
+            entity.ToTable("instances");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.Status)
+                .HasColumnName("status");
+            entity.Property(e => e.PublicKey)
+                .HasColumnName("public_key");
         });
 
         modelBuilder.Entity<Request>(entity =>
@@ -236,6 +267,88 @@ public partial class EfDbContext : DbContext
             entity.Property(e => e.Host).HasColumnName("host");
             entity.Property(e => e.Schema).HasColumnName("schema");
         });
+        
+        modelBuilder.Entity<Deployment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("deployments_pk");
+
+            entity.ToTable("deployments", "public");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.Title)
+                .HasColumnName("title");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updated_at");
+            entity.HasOne(e => e.Target)
+                .WithMany(t => t.Deployments)
+                .HasForeignKey(e => e.TargetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("deployments_targets_id_fk");
+            entity.HasOne(e => e.Schema)
+                .WithMany(s => s.Deployments)
+                .HasForeignKey(e => e.SchemaId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("deployments_schemas_id_fk");
+            
+            entity.HasOne(e => e.Status)
+                .WithMany(s => s.Deployments)
+                .HasForeignKey(e => e.StatusId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("deployments_deployment_statuses_id_fk");
+            
+            entity.HasMany(e => e.Endpoints)
+                .WithOne(ep => ep.Deployment)
+                .HasForeignKey("DeploymentId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("endpoints_deployments_id_fk");
+            
+        });
+        
+        modelBuilder.Entity<SchemaEndpoint>(entity =>
+        {
+            entity.HasKey(e => new { e.SchemaId }).HasName("schema_endpoints_pk");
+
+            entity.ToTable("schema_endpoints", "public");
+
+            entity.Property(e => e.SchemaId).HasColumnName("schema_id");
+            entity.Property(e => e.Path).HasColumnName("path");
+
+            entity.HasOne(d => d.Schema).WithMany(p => p.Endpoints)
+                .HasForeignKey(d => d.SchemaId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("schema_endpoints_schemas_id_fk");
+        });
+        
+        modelBuilder.Entity<Schema>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("schemas_pk");
+
+            entity.ToTable("schemas", "public");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.Title)
+                .HasColumnName("title");
+            entity.Property(e => e.Description)
+                .HasColumnName("description");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updated_at");
+        });
 
         modelBuilder.Entity<User>(entity =>
         {
@@ -249,7 +362,6 @@ public partial class EfDbContext : DbContext
                 .HasDefaultValueSql("gen_random_uuid()")
                 .HasColumnName("id");
             entity.Property(e => e.Passwordhs).HasColumnName("passwordhs");
-            entity.Property(e => e.Role).HasColumnName("role");
             entity.Property(e => e.Username)
                 .HasMaxLength(32)
                 .HasColumnName("username");

@@ -6,13 +6,14 @@ using GatewayPluginContract.Entities;
 namespace Gateway;
 
 // Main director
-public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager)
+public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, Identity.Identity identity)
 {
     public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
     public StoreFactory Store { get; } = store;
     public LocalTaskQueue LocalTaskQueue { get; set; } = localTaskQueue;
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
     public PluginManager PluginManager { get; set; } = pluginManager;
+    public Identity.Identity Identity { get; init; } = identity;
     public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder().
         WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
@@ -44,7 +45,9 @@ public class GatewayBuilder(IConfiguration configuration)
     
     public async Task<GatewayBuild> Build()
     {
-        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager);
+        var identity = new Identity.Identity(_configuration);
+        var test = identity.GetPublicKey();
+        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager, identity);
         gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));
@@ -53,6 +56,21 @@ public class GatewayBuilder(IConfiguration configuration)
         
         gateway.ConfigurationsProvider.LoadPipeConfigs();
         gateway.ConfigurationsProvider.LoadServiceConfigs();
+        
+        var context = StoreFactory.CreateStore().Context;
+        var instance = await context.Set<Instance>().FindAsync(identity.Id);
+        if (instance == null)
+        {
+            instance = (Instance)identity;
+            var repo = context.Set<Instance>();
+            await repo.AddAsync(instance);
+        }
+        else
+        {
+            instance.Status = "Active";
+        }
+        await context.SaveChangesAsync();
+
         
         return new GatewayBuild(
             gateway, 
