@@ -180,6 +180,9 @@ public static class Utils
             ResponseMeta["offset"] = Offset;
             ResponseMeta["sort"] = SortBy;
             ResponseMeta["query"] = Query ?? string.Empty;
+            ResponseMeta["queryable"] = QueryableAttributes;
+            ResponseMeta["sortable"] = SortableAttributes;
+            
             
             return handledResponse;
         }
