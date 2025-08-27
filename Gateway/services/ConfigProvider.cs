@@ -187,7 +187,7 @@ public class ConfigProvider : IConfigurationsProvider
             }
             
             // Load endpoint-specific pipe services
-            var endpoints = _dataRepos.GetRepo<Endpoint>().QueryAsync(_ => true).Result;
+            var endpoints = _dataRepos.Context.Set<Endpoint>().ToList();
             foreach (var endpoint in endpoints)
             {
                 if (endpoint.Pipe != null)

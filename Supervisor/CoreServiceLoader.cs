@@ -1,5 +1,6 @@
 using GatewayPluginContract;
 using Supervisor.auth;
+using Supervisor.routes;
 
 namespace Supervisor;
 

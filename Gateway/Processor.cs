@@ -1,6 +1,7 @@
 using System.Net;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
 namespace Gateway;
@@ -21,13 +22,15 @@ public class RequestPipeline
     private readonly IConfigurationsProvider? _configManager;
     private readonly Repositories _repositories;
     private readonly IBackgroundQueue _backgroundQueue;
+    private readonly RouteTrie _router;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
         List<PipeProcessorContainer> postProcessors,
         IConfigurationsProvider configManager,
         Repositories repositories,
-        IBackgroundQueue backgroundQueue)
+        IBackgroundQueue backgroundQueue,
+        RouteTrie router)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
@@ -35,6 +38,7 @@ public class RequestPipeline
         _configManager = configManager;
         _repositories = repositories;
         _backgroundQueue = backgroundQueue;
+        _router = router;
     }
 
     public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -157,9 +161,10 @@ public class RequestPipeline
         
         if (_configManager != null)
         {
-            var endpoints = _repositories.GetRepo<Endpoint>();
-            context.Endpoint = endpoints.QueryAsync(e => context.Request.Path.ToString().StartsWith(e.Path))
-                .Result.FirstOrDefault();
+            // Finds the endpoint and it's routed target using the router
+            // If no endpoint is found, use the fallback target
+            context.Route = _router.FindClosest(context.Request.Path);
+            context.Endpoint = context.Route?.Endpoint;
 
             if (context.Endpoint == null)
             {
@@ -169,7 +174,7 @@ public class RequestPipeline
             }
             else
             {
-                context.Target = context.Endpoint.Target;
+                context.Target = context.Route?.Target ?? throw new InvalidOperationException("No target found for the matched endpoint. Cannot process request without a target.");
             }
             
             // Load configuration using the endpoint object
@@ -199,6 +204,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
+    private RouteTrie? Router { get; set; } = null;
     private IBackgroundQueue? _backgroundQueue = null;
     private Repositories? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
@@ -274,6 +280,12 @@ public class RequestPipelineBuilder
         return this;
     }
     
+    public RequestPipelineBuilder WithRouter(RouteTrie router)
+    {
+        Router = router;
+        return this;
+    }
+    
     public RequestPipelineBuilder WithBackgroundQueue(IBackgroundQueue backgroundQueue)
     {
         if (backgroundQueue == null)
@@ -287,7 +299,7 @@ public class RequestPipelineBuilder
 
     public RequestPipeline Build()
     {
-        if (_configManager == null || _repoFactory == null || _backgroundQueue == null)
+        if (_configManager == null || _repoFactory == null || _backgroundQueue == null || Router == null)
         {
             throw new InvalidOperationException("All required components (config manager, store, background queue) must be set before building the pipeline.");
         }
@@ -296,6 +308,6 @@ public class RequestPipelineBuilder
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue, Router);
     }
 }

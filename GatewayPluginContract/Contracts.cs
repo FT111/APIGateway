@@ -106,6 +106,16 @@ public class RequestContext
     public string GatewayPathPrefix { get; set; } = string.Empty;
     public Dictionary<string, Dictionary<string, string>> PluginConfiguration { get; set; } = new();
     public Dictionary<string, Dictionary<string, string>> SharedPluginContext { get; set; } = new();
+    public RouteNode? Route { get; set; }
+}
+
+public class RouteNode
+{
+    public string Segment { get; set; } = null!;
+    public Dictionary<string, RouteNode> Children { get; set; } = new Dictionary<string, RouteNode>();
+    public Endpoint? Endpoint { get; set; } = null;
+    public Deployment? Deployment => Endpoint?.Deployment;
+    public Target? Target;
 }
 
 

@@ -2,11 +2,12 @@ using System.ComponentModel.Design;
 using Gateway.services;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gateway;
 
 // Main director
-public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, Identity.Identity identity)
+public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, Identity.Identity identity, RouteTrie router)
 {
     public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
     public StoreFactory Store { get; } = store;
@@ -14,10 +15,12 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
     public PluginManager PluginManager { get; set; } = pluginManager;
     public Identity.Identity Identity { get; init; } = identity;
+    public RouteTrie Router { get; set; } = router;
     public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder().
         WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
         .WithBackgroundQueue(localTaskQueue)
+        .WithRouter(router)
         .Build();
 
     public TaskQueueHandler TaskQueueHandler { get; set; } = new TaskQueueHandler(store, localTaskQueue);
@@ -46,8 +49,8 @@ public class GatewayBuilder(IConfiguration configuration)
     public async Task<GatewayBuild> Build()
     {
         var identity = new Identity.Identity(_configuration);
-        var test = identity.GetPublicKey();
-        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager, identity);
+        var router = WithRouter();
+        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager, identity, router);
         gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));
@@ -67,7 +70,7 @@ public class GatewayBuilder(IConfiguration configuration)
         }
         else
         {
-            instance.Status = "Active";
+            instance.Status = "active";
         }
         await context.SaveChangesAsync();
 
@@ -76,6 +79,20 @@ public class GatewayBuilder(IConfiguration configuration)
             gateway, 
             supervisorClient
         );
+    }
+
+    private RouteTrie WithRouter()
+    {
+        if (StoreFactory == null)
+        {
+            throw new InvalidOperationException("StoreFactory must be set before building the router.");
+        }
+
+        var deployments = StoreFactory.CreateStore().Context.Set<Deployment>().Include(d => d.Target)
+            .Include(d => d.Endpoints).ThenInclude(e => e.Parent);
+        deployments.Load();
+        return RouterFactory.BuildRouteTrie(deployments.ToList());
+        
     }
     public void WithStoreProvider(StoreFactory storeFactory)
     {
