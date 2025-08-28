@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using GatewayPluginContract.Entities;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
-namespace Gateway.Context;
+namespace Supervisor.Context;
 
 public partial class EfDbContext : DbContext
 {

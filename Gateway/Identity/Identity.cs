@@ -37,7 +37,6 @@ public class Identity
         {
             var idText = File.ReadAllText(idPath);
             var privateKeyText = File.ReadAllText(privateKeyPath);
-            var publicKeyText = File.ReadAllText(publicKeyPath);
             var pemReader = new PemReader(new StringReader(privateKeyText));
             var keyPair = pemReader.ReadObject() as Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair;
             if (keyPair == null)

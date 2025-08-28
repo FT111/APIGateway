@@ -5,13 +5,14 @@ using Microsoft.IdentityModel.Tokens;
 using Supervisor.auth;
 using Supervisor.routes;
 using Newtonsoft.Json;
+using Instances = Supervisor.services.Instances;
 
 namespace Supervisor;
 
 
 public static class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
@@ -46,11 +47,15 @@ public static class Program
         builder.Services.AddAuthorization();
         
         var app = builder.Build();
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapOpenApi();
-            app.UseSwaggerUI();
-        }
+        var instanceManager = app.Services.GetRequiredService<Instances.InstanceManager>();
+        await instanceManager.StartAsync();
+        app.MapOpenApi();
+        app.UseSwaggerUI(
+            settings =>
+            {
+                // settings.SwaggerEndpoint("openapi/v1.json", "Supervisor API V1");
+            });
+        
         
         app.UseAuthentication();
         app.UseAuthorization();
