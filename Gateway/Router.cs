@@ -44,7 +44,11 @@ namespace Gateway
                     Console.WriteLine($"No exact match for path '{path}'. Closest match ends at segment '{currentNode.Segment}' with endpoint {currentNode.Endpoint?.Path}");
                     return currentNode;
                 }
-                currentNode = child;
+                
+                if (child.Endpoint != null)
+                {
+                    currentNode = child; // Update to the last node with an endpoint
+                }
             }
             
             Console.WriteLine($"Exact match found for path '{path}' with endpoint {currentNode.Endpoint?.Path}");
