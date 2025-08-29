@@ -46,7 +46,7 @@ public static class Mapping
             Id = endpoint.Id,
             Path = endpoint.Path,
             TargetPathPrefix = endpoint.TargetPathPrefix,
-            TargetId = endpoint.TargetId
+            TargetId = endpoint.TargetId ?? Guid.Empty
         }).ToList()
     };
 }

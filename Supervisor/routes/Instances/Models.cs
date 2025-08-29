@@ -1,12 +1,18 @@
+using GatewayPluginContract.Attributes;
+
 namespace Supervisor.routes.Instances;
 
 public static class Models
 {
     public class InstanceResponse
     {
+        [Queryable]
         public required Guid Id { get; set; }
+        [Queryable]
         public required string Status { get; set; }
+        [Sortable]
         public DateTime CreatedAt { get; set; }
+        [Sortable]
         public DateTime LastSeenAt { get; set; }
     }
 }

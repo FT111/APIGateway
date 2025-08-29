@@ -1,3 +1,4 @@
+using GatewayPluginContract.Attributes;
 using GatewayPluginContract.Entities;
 
 namespace Supervisor.routes.Endpoints;
@@ -7,8 +8,11 @@ public static class Models
     public class EndpointResponse
     {
         public Guid Id { get; set; }
+        [Queryable]
+        [Sortable]
         public string Path { get; set; } = null!;
         public string? TargetPathPrefix { get; set; }
+        [Sortable]
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         
