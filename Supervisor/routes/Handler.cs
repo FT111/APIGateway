@@ -8,7 +8,7 @@ public static class Handler
     {
         // Register all routes here
         new Users.Routes(app);
-        new Instances(app);
+        new Instances.Routes(app);
         new Auth.Routes(app);
         new Targets.Routes(app);
         new Pipes.Routes(app);
