@@ -36,7 +36,7 @@ public class SupervisorClient(
         await _supervisor.SendEventAsync(new SupervisorEvent
         {
             Type = SupervisorEventType.Heartbeat,
-            Value = DateTime.UtcNow.ToString("o") // ISO 8601 format
+            Value = gateway.Identity.Id.ToString()
         });
     }
     private async Task StartHeartbeatLoopAsync(TimeSpan interval)
@@ -69,7 +69,16 @@ public class SupervisorClient(
                     break;
                 case "restart":
                     Console.WriteLine("Received gateway restart command. Restarting gateway...");
-                    // _app.Lifetime.StopApplication();
+                    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                    var newProcess = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = currentProcess.MainModule?.FileName ?? throw new InvalidOperationException("Cannot determine current process file name"),
+                        Arguments = string.Join(' ', Environment.GetCommandLineArgs().Skip(1)),
+                        UseShellExecute = true
+                    };
+                    System.Diagnostics.Process.Start(newProcess);
+                    await Task.Delay(1000); // Give the new process a moment to start
+                    Environment.Exit(0);
                     break;
                 case "update_configurations":
                     gateway.ConfigurationsProvider.LoadPipeConfigs();

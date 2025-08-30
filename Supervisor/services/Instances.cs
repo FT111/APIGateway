@@ -48,8 +48,8 @@ public static class Instances
                     var offline = Instances.Where(kv => now - kv.Value.LastSeen > timeout).Select(kv => kv.Key).ToList();
                     foreach (var instanceId in offline)
                     {
-                        Instances.Remove(instanceId);
                         var instance = await GatewayData.Context.Set<Instance>().FindAsync(instanceId);
+                        Instances.Where(kv => kv.Key == instanceId).ToList().ForEach(kv => kv.Value.Instance.Status = "offline");
                         if (instance != null)
                         {
                             GatewayData.Context.Set<Instance>().Entry(instance).Entity.Status = "offline";
@@ -67,10 +67,11 @@ public static class Instances
         
         private Task HandleHeartbeat(SupervisorEvent e)
         {
-            Console.WriteLine($"Received heartbeat event: {e.Value}");
+            Console.WriteLine($"Current instances: {string.Join(", ", Instances.Keys)}");
             var instanceId = Guid.Parse(e.Value ?? throw new InvalidOperationException("Heartbeat event missing instance ID"));
             if (Instances.TryGetValue(instanceId, out var existingInstance))
             {
+                existingInstance.Instance.Status = "online";
                 existingInstance.LastSeen = DateTime.UtcNow;
             }
             else

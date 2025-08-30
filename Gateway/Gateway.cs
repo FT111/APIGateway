@@ -70,7 +70,7 @@ public class GatewayBuilder(IConfiguration configuration)
         }
         else
         {
-            instance.Status = "active";
+            instance.Status = "online";
         }
         await context.SaveChangesAsync();
 
