@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gateway;
 
@@ -16,13 +18,6 @@ public class SupervisorClient(
 
     public async Task StartAsync()
     {
-        // Read heartbeats
-        await _supervisor.SubscribeAsync(SupervisorEventType.Heartbeat, async (eventData) =>
-        {
-            // Handle heartbeat event
-            Console.WriteLine($"Received heartbeat: {eventData.Value}");
-        });
-        
         // Start the heartbeat loop
         var heartbeatInterval = TimeSpan.FromSeconds(30);
         _ = StartHeartbeatLoopAsync(heartbeatInterval);
@@ -57,37 +52,64 @@ public class SupervisorClient(
     
     private async Task HandleSupervisorCommandsAsync()
     {
+        await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (SupervisorEvent eventData) =>
+        {
+            await ProcessCommandAsync(eventData);
+        }, gateway.Identity.Id);
         // Subscribe to Supervisor commands
         await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (eventData) =>
         {
-            switch (eventData.Value)
-            {
-                case "update_plugins":
-                    Console.WriteLine("Received plugin update command. Updating plugins...");
-                    // This will fetch plugins from the DB in the future
-                    await gateway.PluginManager.LoadPluginsAsync(gateway.BaseConfiguration["PluginDirectory"] ?? "services/plugins");
-                    break;
-                case "restart":
-                    Console.WriteLine("Received gateway restart command. Restarting gateway...");
-                    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-                    var newProcess = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = currentProcess.MainModule?.FileName ?? throw new InvalidOperationException("Cannot determine current process file name"),
-                        Arguments = string.Join(' ', Environment.GetCommandLineArgs().Skip(1)),
-                        UseShellExecute = true
-                    };
-                    System.Diagnostics.Process.Start(newProcess);
-                    await Task.Delay(1000); // Give the new process a moment to start
-                    Environment.Exit(0);
-                    break;
-                case "update_configurations":
-                    gateway.ConfigurationsProvider.LoadPipeConfigs();
-                    gateway.ConfigurationsProvider.LoadServiceConfigs();
-                    break;
-                default:
-                    Console.WriteLine($"Unknown command received: {eventData.Value}");
-                    break;
-            }
+            await ProcessCommandAsync(eventData);
         });
+    }
+    
+    private async Task ProcessCommandAsync(SupervisorEvent eventData)
+    {
+        switch (eventData.Value)
+        {
+            case "update_plugins":
+                Console.WriteLine("Received plugin update command. Updating plugins...");
+                // This will fetch plugins from the DB in the future
+                await gateway.PluginManager.LoadPluginsAsync(gateway.BaseConfiguration["PluginDirectory"] ?? "services/plugins");
+                break;
+            case "restart":
+                Console.WriteLine("Received gateway restart command. Restarting gateway...");
+                var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                var newProcess = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = currentProcess.MainModule?.FileName ?? throw new InvalidOperationException("Cannot determine current process file name"),
+                    Arguments = string.Join(' ', Environment.GetCommandLineArgs().Skip(1)),
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Normal
+                };
+                System.Diagnostics.Process.Start(newProcess);
+                await Task.Delay(1000); // Give the new process a moment to start
+                Environment.Exit(0);
+                break;
+            case "update_configurations":
+                gateway.ConfigurationsProvider.LoadPipeConfigs();
+                gateway.ConfigurationsProvider.LoadServiceConfigs();
+                break;
+            case "update_routes":
+                await gateway.RebuildRouterAsync();
+                break;
+            case "stop":
+                Console.WriteLine("Received gateway stop command. Stopping gateway...");
+                var context = gateway.Store.CreateStore().Context;
+                var instance = await context.Set<Instance>().Where(i => i.Id == gateway.Identity.Id).FirstOrDefaultAsync();
+                if (instance != null)
+                {
+                    instance.Status = "offline";
+                    await context.SaveChangesAsync();
+                }
+                await context.DisposeAsync();
+                
+                Environment.Exit(0);
+                break;
+            default:
+                Console.WriteLine($"Unknown command received: {eventData.Value}");
+                break;
+        }
+        await Task.CompletedTask;
     }
 }

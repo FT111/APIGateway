@@ -22,7 +22,7 @@ public class RequestPipeline
     private readonly IConfigurationsProvider? _configManager;
     private readonly Repositories _repositories;
     private readonly IBackgroundQueue _backgroundQueue;
-    private readonly RouteTrie _router;
+    public RouteTrie Router;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
@@ -38,7 +38,7 @@ public class RequestPipeline
         _configManager = configManager;
         _repositories = repositories;
         _backgroundQueue = backgroundQueue;
-        _router = router;
+        Router = router;
     }
 
     public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -163,7 +163,7 @@ public class RequestPipeline
         {
             // Finds the endpoint and it's routed target using the router
             // If no endpoint is found, use the fallback target
-            context.Route = _router.FindClosest(context.Request.Path);
+            context.Route = Router.FindClosest(context.Request.Path);
             context.Endpoint = context.Route?.Endpoint;
 
             if (context.Endpoint == null)

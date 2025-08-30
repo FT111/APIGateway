@@ -38,6 +38,29 @@ public static class Instances
             _ = HandleInstanceHealthCheckingAsync(TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1));
         }
         
+        public async Task DeleteInstanceAsync(Guid instanceId)
+        {
+            if (Instances.ContainsKey(instanceId))
+            {
+                var instance = await GatewayData.Context.Set<Instance>().FindAsync(instanceId);
+                if (instance != null)
+                {
+                    GatewayData.Context.Set<Instance>().Remove(instance);
+                    await GatewayData.Context.SaveChangesAsync();
+                }
+                Instances.Remove(instanceId);
+                await Messages.SendEventAsync(new SupervisorEvent
+                {
+                    Type = SupervisorEventType.Command,
+                    Value = $"stop"
+                }, instanceId);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Instance with ID {instanceId} not found");
+            }
+        }
+        
         private async Task HandleInstanceHealthCheckingAsync(TimeSpan checkInterval, TimeSpan timeout)
         {
             while (true)

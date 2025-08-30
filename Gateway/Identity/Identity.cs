@@ -69,7 +69,7 @@ public class Identity
         {
             Id = Id,
             PublicKey = GetPublicKey(),
-            Status = "active",
+            Status = "online",
         };
     }
     

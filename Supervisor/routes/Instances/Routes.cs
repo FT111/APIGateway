@@ -25,5 +25,19 @@ public class Routes
                 return Results.Problem(ex.Message, statusCode: 500);
             }
         });
+        
+        route.MapDelete("/{id:guid}", async (Guid id, services.Instances.InstanceManager manager, Utils.ResponseStructure<string> res) =>
+        {
+            try
+            {
+                await manager.DeleteInstanceAsync(id);
+
+                return Results.Ok(res.WithData($"Instance {id} removed successfully"));
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message, statusCode: 500);
+            }
+        });
     }
 }

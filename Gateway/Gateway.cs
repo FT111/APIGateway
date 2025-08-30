@@ -15,7 +15,6 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
     public PluginManager PluginManager { get; set; } = pluginManager;
     public Identity.Identity Identity { get; init; } = identity;
-    public RouteTrie Router { get; set; } = router;
     public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder().
         WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
@@ -28,6 +27,14 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         await TaskQueueHandler.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+    }
+    
+    public async Task RebuildRouterAsync()
+    {
+        var deployments = Store.CreateStore().Context.Set<Deployment>().Include(d => d.Target)
+            .Include(d => d.Endpoints).ThenInclude(e => e.Parent);
+        await deployments.LoadAsync();
+        Pipe.Router = RouterFactory.BuildRouteTrie(deployments.ToList());
     }
 }
 

@@ -32,6 +32,5 @@ public class Routes
 
                 return Results.Created($"/instances/events", res.WithData(e));
             });
-
     }
 }
