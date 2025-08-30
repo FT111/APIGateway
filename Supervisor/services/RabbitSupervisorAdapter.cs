@@ -50,7 +50,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         _channel.BasicQosAsync(0, 1, false); // Fair dispatch
     }
     
-    public override async Task SendEventAsync(SupervisorEvent eventData)
+    public override async Task SendEventAsync(SupervisorEvent eventData, Guid? instanceId = null)
     {
         if (eventData == null)
         {
@@ -60,15 +60,15 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var body = System.Text.Encoding.UTF8.GetBytes(eventData.Value ?? "");
         await _channel.BasicPublishAsync(
             exchange: _exchangeNames[eventData.Type],
-            routingKey: "",
+            routingKey: instanceId?.ToString() ?? "",
             body: body
         );
     }
 
-    public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler)
+    public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null)
     {
         var queueName = _channel.QueueDeclareAsync().Result.QueueName;
-        _channel.QueueBindAsync(queueName, _exchangeNames[eventType], "");
+        _channel.QueueBindAsync(queueName, _exchangeNames[eventType], instanceId?.ToString() ?? "");
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += async (model, ea) =>

@@ -206,8 +206,8 @@ public abstract class StoreFactory(IConfiguration configuration) : IService
 
 public abstract class SupervisorAdapter(IConfiguration configuration) : IService
 {
-    public abstract Task SendEventAsync(SupervisorEvent eventData);
-    public abstract Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler);
+    public abstract Task SendEventAsync(SupervisorEvent eventData, Guid? targetInstanceId = null);
+    public abstract Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null);
 }
 
 public enum SupervisorEventType
