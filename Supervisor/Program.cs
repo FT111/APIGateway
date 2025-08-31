@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Supervisor.auth;
@@ -16,7 +17,7 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
-        
+
         CoreServiceLoader.LoadFromConfiguration(builder);
         builder.Services.ConfigureHttpJsonOptions(options =>
         {
@@ -40,17 +41,32 @@ public static class Program
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = builder.Configuration["Auth:Issuer"],
                 ValidAudience = builder.Configuration["Auth:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(builder.Configuration["Auth:Secret"]))
+                IssuerSigningKey =
+                    new SymmetricSecurityKey(Convert.FromBase64String(builder.Configuration["Auth:Secret"]))
             };
         });
 
         builder.Services.AddAuthorization();
-        
+
         var app = builder.Build();
         var instanceManager = app.Services.GetRequiredService<Instances.InstanceManager>();
         await instanceManager.StartAsync();
         app.MapOpenApi();
-        app.UseSwaggerUI(
+        app.UseStaticFiles(
+            new StaticFileOptions
+            {
+                ServeUnknownFileTypes = true,
+                DefaultContentType = "application/octet-stream",
+                RequestPath = "/plugins",
+                FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+                    Path.Combine(Directory.GetCurrentDirectory(), "services", "plugins")),
+                OnPrepareResponse = ctx =>
+                {
+                    ctx.Context.AuthenticateAsync().Wait();
+                }
+            });
+
+    app.UseSwaggerUI(
             settings =>
             {
                 // settings.SwaggerEndpoint("openapi/v1.json", "Supervisor API V1");

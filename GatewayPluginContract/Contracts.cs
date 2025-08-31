@@ -216,3 +216,9 @@ public enum SupervisorEventType
     Event,
     Heartbeat
 }
+
+public interface IPluginPackageManager : IService
+{
+    public string GetPluginStaticUrl();
+    public void PackagePluginsAsync();
+}

@@ -16,7 +16,7 @@ public static class CoreServiceLoader
         var coreServices = builder.Configuration.GetSection("coreServices") 
             ?? throw new InvalidOperationException("coreServices configuration section not found.");
         
-        var requiredServices = new[] {"InstanceStore", "MessageAdapter", "SupervisorStore"};
+        var requiredServices = new[] {"InstanceStore", "MessageAdapter", "SupervisorStore", "PluginPackageManager"};
         Dictionary<string, string> serviceIdentifiers = new Dictionary<string, string>();
         foreach (var service in requiredServices)
         {
@@ -43,6 +43,8 @@ public static class CoreServiceLoader
         
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance
             ?? throw new InvalidOperationException("SupervisorClient service not found."));
+        builder.Services.AddSingleton<GatewayPluginContract.IPluginPackageManager>(pluginManager.Registrar.GetServiceByName<GatewayPluginContract.IPluginPackageManager>(serviceIdentifiers["PluginPackageManager"]).Instance
+            ?? throw new InvalidOperationException("PluginPackageManager service not found."));
         builder.Services.AddSingleton<Instances.InstanceManager>();
     }
 }
