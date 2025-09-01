@@ -33,6 +33,10 @@ public static class CoreServiceLoader
             ?? throw new InvalidOperationException("StoreFactory service not found.");
         var supervisorStoreProvider = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["SupervisorStore"]).Instance
             ?? throw new InvalidOperationException("SupervisorStore service not found.");
+        var packageManager = pluginManager.Registrar.GetServiceByName<GatewayPluginContract.IPluginPackageManager>(serviceIdentifiers["PluginPackageManager"]).Instance
+            ?? throw new InvalidOperationException("PluginPackageManager service not found.");
+        packageManager.PackagePluginsAsync();
+        builder.Services.AddSingleton<GatewayPluginContract.IPluginPackageManager>(packageManager);
         
         
         builder.Services.AddSingleton<InternalTypes.Repositories.Gateway>(new InternalTypes.Repositories.Gateway(
@@ -43,8 +47,6 @@ public static class CoreServiceLoader
         
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance
             ?? throw new InvalidOperationException("SupervisorClient service not found."));
-        builder.Services.AddSingleton<GatewayPluginContract.IPluginPackageManager>(pluginManager.Registrar.GetServiceByName<GatewayPluginContract.IPluginPackageManager>(serviceIdentifiers["PluginPackageManager"]).Instance
-            ?? throw new InvalidOperationException("PluginPackageManager service not found."));
         builder.Services.AddSingleton<Instances.InstanceManager>();
     }
 }

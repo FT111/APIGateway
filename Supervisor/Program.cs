@@ -52,19 +52,29 @@ public static class Program
         var instanceManager = app.Services.GetRequiredService<Instances.InstanceManager>();
         await instanceManager.StartAsync();
         app.MapOpenApi();
-        app.UseStaticFiles(
-            new StaticFileOptions
-            {
-                ServeUnknownFileTypes = true,
-                DefaultContentType = "application/octet-stream",
-                RequestPath = "/plugins",
-                FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-                    Path.Combine(Directory.GetCurrentDirectory(), "services", "plugins")),
-                OnPrepareResponse = ctx =>
+
+        var useLocalPackages = app.Configuration.GetValue<bool>("CoreServices:PluginPackageManager:Configuration:RegisterLocalStaticRoute");
+
+        if (useLocalPackages)
+        {
+            var internalPluginPackagePath = app.Configuration["CoreServices:PluginPackageManager:Configuration:PackagedPath"]?.Split('/') ?? throw new InvalidOperationException("Plugin package path not configured.");
+            var packagesPath = app.Configuration["CoreServices:PluginPackageManager:Configuration:PackagesPath"] ?? throw new InvalidOperationException("Plugin packages path not configured.");
+            
+            app.UseStaticFiles(
+                new StaticFileOptions
                 {
-                    ctx.Context.AuthenticateAsync().Wait();
-                }
-            });
+                    ServeUnknownFileTypes = true,
+                    DefaultContentType = "application/octet-stream",
+                    RequestPath = $"/{packagesPath}",
+                    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+                        Path.Combine(Directory.GetCurrentDirectory(), Path.Combine(internalPluginPackagePath))),
+                    OnPrepareResponse = ctx =>
+                    {
+                        ctx.Context.AuthenticateAsync().Wait();
+                    }
+                });
+            
+        }
 
     app.UseSwaggerUI(
             settings =>
