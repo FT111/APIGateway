@@ -50,7 +50,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         _channel.BasicQosAsync(0, 1, false); // Fair dispatch
     }
     
-    public override async Task SendEventAsync(SupervisorEvent eventData, Guid? instanceId = null)
+    public override async Task SendEventAsync(SupervisorEvent eventData, Guid? instanceId = null, Guid correlationId = new Guid())
     {
         if (eventData == null)
         {
@@ -58,14 +58,57 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         }
 
         var body = System.Text.Encoding.UTF8.GetBytes(eventData.Value ?? "");
+        var props = new BasicProperties()
+        {
+            CorrelationId = correlationId.ToString(),
+        };
+        
         await _channel.BasicPublishAsync(
             exchange: _exchangeNames[eventData.Type],
             routingKey: instanceId?.ToString() ?? "",
+            mandatory: false,
+            basicProperties: props,
             body: body
         );
     }
+    
+    public override async Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout)
+    {
+        var queueName = _channel.QueueDeclareAsync().Result.QueueName;
+        _channel.QueueBindAsync(queueName, _exchangeNames[SupervisorEventType.Response], "");
 
-    public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null)
+        var tcs = new TaskCompletionSource<SupervisorEvent>();
+        var consumer = new AsyncEventingBasicConsumer(_channel);
+        consumer.ReceivedAsync += async (model, ea) =>
+        {
+            if (ea.BasicProperties.CorrelationId == correlationId.ToString())
+            {
+                var body = ea.Body.ToArray();
+                var message = System.Text.Encoding.UTF8.GetString(body);
+                var eventData = new SupervisorEvent
+                {
+                    Type = SupervisorEventType.Response,
+                    Value = message
+                };
+                tcs.SetResult(eventData);
+            }
+            await Task.Yield();
+        };
+
+        _channel.BasicConsumeAsync(queue: queueName, autoAck: true, consumer: consumer);
+
+        var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+        if (completedTask == tcs.Task)
+        {
+            return await tcs.Task;
+        }
+        else
+        {
+            throw new TimeoutException("Awaiting response timed out");
+        }
+    }
+
+    public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null, Guid? correlationId = null)
     {
         var queueName = _channel.QueueDeclareAsync().Result.QueueName;
         _channel.QueueBindAsync(queueName, _exchangeNames[eventType], instanceId?.ToString() ?? "");
@@ -73,6 +116,12 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += async (model, ea) =>
         {
+            if (correlationId != null && ea.BasicProperties.CorrelationId != correlationId.ToString())
+            {
+                // Ignore messages that don't match the correlation ID
+                return;
+            }
+            
             // Convert the received message to SupervisorEvent
             var body = ea.Body.ToArray();
             var message = System.Text.Encoding.UTF8.GetString(body);
