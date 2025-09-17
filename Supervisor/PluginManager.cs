@@ -64,12 +64,6 @@ public class PluginManager(IConfiguration configuration)
             {
                 if (!type.IsClass || type.IsAbstract || !serviceType.IsAssignableFrom(type) ||
                     type.Namespace != serviceNamespace) continue;
-                // TODO: Only give them their own configuration, e.g _configuration.GetSection("coreServices").
-                // Allows for multiple instances of the same service with different configurations
-                // Also only load services that are registered in the configuration
-                
-                // TODO: Don't instantiate core services from plugins in the main load func, instead register their type
-                // and conditionally instantiate them here
                 foreach (var serviceConfig in _configuration.GetSection("coreServices").GetChildren())
                 {
                     if (serviceConfig["identifier"] != "Core/"+type.Name)

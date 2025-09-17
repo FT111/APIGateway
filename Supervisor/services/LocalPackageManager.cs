@@ -2,13 +2,13 @@ using System.IO.Compression;
 
 namespace Supervisor.services;
 
-public class PluginPackageManager : GatewayPluginContract.IPluginPackageManager
+public class LocalPackageManager : GatewayPluginContract.IPluginPackageManager
 {
     public string PluginStaticUrl { get; init; }
     public string UnPackagedPath { get; init; }
     public string PackagedPath { get; init; }
     
-    public PluginPackageManager(IConfiguration configuration)
+    public LocalPackageManager(IConfiguration configuration)
     {
         PluginStaticUrl = configuration.GetValue<string>("PackagesURL") ?? throw new ArgumentNullException("PackagesURL configuration is required");
         UnPackagedPath = configuration.GetValue<string>("UnpackagedPath") ?? throw new ArgumentNullException("UnpackagedPath configuration is required");
@@ -39,4 +39,15 @@ public class PluginPackageManager : GatewayPluginContract.IPluginPackageManager
             ZipFile.CreateFromDirectory(dir, zipPath);
         }
     }
+    
+    // public async Task UnpackagePluginAsync(string identifier, string destinationPath)
+    // {
+    //     if (!Directory.Exists(destinationPath))
+    //     {
+    //         throw new DirectoryNotFoundException($"Package export destination path '{destinationPath}' does not exist.");
+    //     }
+    //     
+    //     identifier += identifier.EndsWith(".gap") ? "" : ".gap";
+    //     ZipFile.ExtractToDirectory(identifier, destinationPath);
+    // }
 }
