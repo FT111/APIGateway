@@ -14,12 +14,23 @@ public static class PluginLoader
         var fullDir = "/Users/freddietaylor/Projects/C#Stuff/Gateway/Gateway/services/plugins";
         foreach (var dir in Directory.GetDirectories(fullDir))
         {
+            List<string> potentialDlls = [];
             var dirName = Path.GetFileName(dir);
-            var targetDll = Path.Combine(dir, dirName + ".dll");
-
-            if (File.Exists(targetDll))
+            
+            // Allow for versioned directories with underscores
+            if (dirName.Split("_").Length == 2)
             {
-                yield return targetDll;
+                potentialDlls.Add(Path.Combine(dir, dirName.Split("_")[0] + ".dll"));
+            }
+                
+            potentialDlls.Add(Path.Combine(dir, dirName + ".dll"));
+
+            foreach (var targetDll in potentialDlls)
+            {
+                if (File.Exists(targetDll))
+                {
+                    yield return targetDll;
+                }
             }
         }
     }
