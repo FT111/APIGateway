@@ -10,7 +10,8 @@ public class LocalPackageManager : GatewayPluginContract.IPluginPackageManager
     
     public LocalPackageManager(IConfiguration configuration)
     {
-        PluginStaticUrl = configuration.GetValue<string>("PackagesURL") ?? throw new ArgumentNullException("PackagesURL configuration is required");
+        PluginStaticUrl = configuration.GetValue<string>("PackagesURL") +
+                          configuration.GetValue<string>("PackagesPath");
         UnPackagedPath = configuration.GetValue<string>("UnpackagedPath") ?? throw new ArgumentNullException("UnpackagedPath configuration is required");
         PackagedPath = configuration.GetValue<string>("PackagedPath") ?? throw new ArgumentNullException("PackagedPath configuration is required");
     }

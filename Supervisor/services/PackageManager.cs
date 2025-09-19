@@ -13,24 +13,24 @@ public class PackageManager
     
     public PackageManager(IConfiguration configuration, InternalTypes.Repositories.Gateway data, IPluginPackageManager pluginPackageManager, SupervisorAdapter messageAdapter)
     {
-        
+        Console.WriteLine("Starting PackageManager service");
         _configuration = configuration;
         _data = data;
         _packager = pluginPackageManager;
         _messageAdapter = messageAdapter;
         
-        HandlePackageDeliveryRequests();
+        HandlePackageDeliveryRequestsAsync().GetAwaiter().GetResult();
     }
 
-    private void HandlePackageDeliveryRequests()
+    private async Task HandlePackageDeliveryRequestsAsync()
     {
-        _messageAdapter.SubscribeAsync(SupervisorEventType.Request, async (evt) =>
+        await _messageAdapter.SubscribeAsync(SupervisorEventType.Request, async (evt) =>
         {
             if (evt.Value != "NEED_PACKAGE_URL")
             {
                 return;
             }
-            
+            Console.WriteLine("Received package URL request, sending package URL");
             await _messageAdapter.SendEventAsync(new SupervisorEvent
             {
                 Type = SupervisorEventType.Response,

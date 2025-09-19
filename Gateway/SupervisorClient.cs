@@ -14,6 +14,7 @@ public class SupervisorClient(
     Gateway gateway
     )
 {
+    private readonly DbContext _context = gateway.Store.CreateStore().Context;
     private readonly SupervisorAdapter _supervisor = supervisor ?? throw new ArgumentNullException(nameof(supervisor));
 
     public async Task StartAsync()
@@ -23,6 +24,8 @@ public class SupervisorClient(
         _ = StartHeartbeatLoopAsync(heartbeatInterval);
         // Handle Supervisor commands
         await HandleSupervisorCommandsAsync();
+        // Handle plugin delivery URL updates
+        await HandlePluginDeliveryUrlUpdatesAsync();
     }
 
     private async Task SendHeartbeatAsync()
@@ -50,17 +53,29 @@ public class SupervisorClient(
         }
     }
     
+    private async Task HandlePluginDeliveryUrlUpdatesAsync()
+    {
+        await _supervisor.SubscribeAsync(SupervisorEventType.DeliveryUrl, async (eventData) =>
+        {
+            if (eventData.Value != null && eventData.Value.StartsWith("http"))
+            {
+                gateway.PluginManager.PluginDeliveryUrl = eventData.Value;
+                Console.WriteLine($"Updated plugin delivery URL to: {eventData.Value}");
+            }
+        });
+    }
+    
     private async Task HandleSupervisorCommandsAsync()
     {
         await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (SupervisorEvent eventData) =>
         {
             await ProcessCommandAsync(eventData);
         }, gateway.Identity.Id);
-        // Subscribe to Supervisor commands
-        await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (eventData) =>
-        {
-            await ProcessCommandAsync(eventData);
-        });
+        // // Subscribe to Supervisor commands
+        // await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (eventData) =>
+        // {
+        //     await ProcessCommandAsync(eventData);
+        // });
     }
     
     private async Task ProcessCommandAsync(SupervisorEvent eventData)
@@ -69,8 +84,9 @@ public class SupervisorClient(
         {
             case "update_plugins":
                 Console.WriteLine("Received plugin update command. Updating plugins...");
-                // This will fetch plugins from the DB in the future
-                await gateway.PluginManager.LoadPluginsAsync(gateway.BaseConfiguration["PluginDirectory"] ?? "services/plugins");
+
+                if (await HandlePluginDiscrepancies()) return;
+
                 break;
             case "restart":
                 Console.WriteLine("Received gateway restart command. Restarting gateway...");
@@ -95,14 +111,13 @@ public class SupervisorClient(
                 break;
             case "stop":
                 Console.WriteLine("Received gateway stop command. Stopping gateway...");
-                var context = gateway.Store.CreateStore().Context;
-                var instance = await context.Set<Instance>().Where(i => i.Id == gateway.Identity.Id).FirstOrDefaultAsync();
+                var instance = await _context.Set<Instance>().Where(i => i.Id == gateway.Identity.Id).FirstOrDefaultAsync();
                 if (instance != null)
                 {
                     instance.Status = "offline";
-                    await context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
                 }
-                await context.DisposeAsync();
+                await _context.DisposeAsync();
                 
                 Environment.Exit(0);
                 break;
@@ -111,5 +126,52 @@ public class SupervisorClient(
                 break;
         }
         await Task.CompletedTask;
+    }
+
+    private async Task<bool> HandlePluginDiscrepancies()
+    {
+        // Reload plugins to ensure the latest state - Then verify 
+        await gateway.PluginManager.LoadPluginsAsync("services/plugins");
+        var pluginVerification =
+            await gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>().AsNoTracking()
+                .AsQueryable());
+
+        if (pluginVerification.IsValid)
+        {
+            return true;
+        }
+        
+        try
+        {
+            foreach (var plugin in pluginVerification.Missing)
+            {
+                Console.WriteLine($"Downloading and installing plugin: {plugin}");
+                await gateway.PluginManager.DownloadAndInstallPluginAsync(plugin);
+            }
+                    
+            // Clean up old plugins
+            foreach (var plugin in pluginVerification.Removed)
+            {
+                await gateway.PluginManager.RemovePluginAsync(plugin);
+            }
+                    
+            await gateway.PluginManager.LoadPluginsAsync("services/plugins");
+                    
+            var finalVerification =
+                await gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>()
+                    .AsNoTracking().AsQueryable());
+
+            if (!finalVerification.IsValid)
+            {
+                throw new InvalidOperationException("Plugin verification failed after attempting to download and install missing plugins.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error downloading or installing plugins: {ex.Message}");
+        }
+    
+
+        return false;
     }
 }

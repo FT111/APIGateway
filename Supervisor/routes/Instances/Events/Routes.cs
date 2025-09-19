@@ -1,5 +1,6 @@
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Supervisor.services;
 
 namespace Supervisor.routes.Instances.Events;
 
@@ -11,10 +12,20 @@ public class Routes
 
         events.MapPost("/",
             async (HttpContext context, Models.EventRequest e, SupervisorAdapter mqHandler,
-                Utils.ResponseStructure<Models.EventRequest> res) =>
+                Utils.ResponseStructure<Models.EventRequest> res, IPluginPackageManager packages) =>
             {
                 try
                 {
+                    if (e.Value == "update_plugins")
+                    {
+                        await mqHandler.SendEventAsync(new SupervisorEvent
+                        {
+                            Type = SupervisorEventType.DeliveryUrl,
+                            Value = packages.GetPluginStaticUrl()  
+                        });
+                        packages.PackagePluginsAsync();
+                        await Task.Delay(50);
+                    }
                     await mqHandler.SendEventAsync(new SupervisorEvent
                     {
                         Type = Enum.Parse<SupervisorEventType>(e.Type, true),

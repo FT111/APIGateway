@@ -1,4 +1,7 @@
+using System.IO.Compression;
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Gateway;
 
@@ -7,7 +10,15 @@ public class PluginManager(IConfiguration configuration)
 {
     private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     private List<IPlugin> _plugins = [];
+    internal string PluginDeliveryUrl = string.Empty;
     internal readonly PluginServiceRegistrar Registrar = new();
+    
+    public class PluginVerificationResult
+    {
+        public List<string> Missing { get; set; } = [];
+        public List<string> Removed { get; set; } = [];
+        public bool IsValid => Missing.Count == 0 && Removed.Count == 0;
+    }
     
     public ServiceTypes GetServiceTypeByIdentifier(string identifier)
     {
@@ -92,6 +103,67 @@ public class PluginManager(IConfiguration configuration)
         }
         ResolveDependencies();
         return Task.CompletedTask;
+    }
+
+    private static async Task<HashSet<string>> ResolveRequiredPluginsAsync(IQueryable<PipeService> services)
+    {
+        var requiredPlugins = new HashSet<string>();
+        await services.ForEachAsync(service =>
+        {
+            var identifier = service.PluginTitle + "_" + service.PluginVersion;
+            requiredPlugins.Add(identifier);
+        });
+        
+        return requiredPlugins;
+    }
+    
+    public async Task<PluginVerificationResult> VerifyInstalledPluginsAsync(IQueryable<PipeService> services)
+    {
+        var requiredPlugins = await ResolveRequiredPluginsAsync(services);
+        var installedPlugins = new HashSet<string>(_plugins.Select(p =>
+            p.GetManifest().Name + "_" + p.GetManifest().Version));
+        
+        return new PluginVerificationResult
+        {
+            Missing = requiredPlugins.Except(installedPlugins).ToList(),
+            Removed = installedPlugins.Except(requiredPlugins).ToList()
+        };
+    }
+
+    public async Task DownloadAndInstallPluginAsync(string identifier)
+    {
+        var httpClient = new HttpClient();
+        identifier = identifier.Replace("/", "_");
+        var fullDeliveryUrl = PluginDeliveryUrl + "/" + identifier + ".gap";
+        Console.WriteLine($"Downloading plugin from: {fullDeliveryUrl}");
+        var response = await httpClient.GetAsync(fullDeliveryUrl);
+        response.EnsureSuccessStatusCode();
+        
+        var pluginData = await response.Content.ReadAsByteArrayAsync();
+        var pluginPath = Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins", identifier + ".gap");
+        await File.WriteAllBytesAsync(pluginPath, pluginData);
+        
+        ZipFile.ExtractToDirectory(pluginPath, Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins", identifier), true);
+        
+        // Delete the .gap file after extraction
+        if (File.Exists(pluginPath))
+        {
+            File.Delete(pluginPath);
+        }
+    }
+    
+    public async Task RemovePluginAsync(string identifier)
+    {
+        identifier = identifier.Replace("/", "_");
+        var pluginPath = Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins", identifier);
+        if (File.Exists(pluginPath))
+        {
+            File.Delete(pluginPath);
+        }
+        else
+        {
+            throw new FileNotFoundException($"Plugin file '{pluginPath}' not found.");
+        }
     }
     
 public class PluginServiceRegistrar : IPluginServiceRegistrar

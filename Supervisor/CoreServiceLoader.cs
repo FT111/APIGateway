@@ -37,7 +37,7 @@ public static class CoreServiceLoader
         var packageManager = pluginManager.Registrar.GetServiceByName<GatewayPluginContract.IPluginPackageManager>(serviceIdentifiers["PluginPackageManager"]).Instance
             ?? throw new InvalidOperationException("PluginPackageManager service not found.");
         packageManager.PackagePluginsAsync();
-        builder.Services.AddSingleton<GatewayPluginContract.IPluginPackageManager>(packageManager);
+        builder.Services.AddSingleton(packageManager);
         
         
         builder.Services.AddSingleton<InternalTypes.Repositories.Gateway>(new InternalTypes.Repositories.Gateway(

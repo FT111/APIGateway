@@ -37,9 +37,13 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         // Declare exchanges
         _exchangeNames = new Dictionary<SupervisorEventType, string>
         {
-            [SupervisorEventType.Command] = configuration["RabbitMq:Queues:Commands"] ?? "commands",
-            [SupervisorEventType.Event] = configuration["RabbitMq:Queues:Events"] ?? "events",
-            [SupervisorEventType.Heartbeat] = configuration["RabbitMq:Queues:Heartbeats"] ?? "heartbeats"
+            [SupervisorEventType.Command] = configuration["Queues:Commands"] ?? "commands",
+            [SupervisorEventType.Event] = configuration["Queues:Events"] ?? "events",
+            [SupervisorEventType.Heartbeat] = configuration["Queues:Heartbeats"] ?? "heartbeats",
+            [SupervisorEventType.Request] = configuration["Queues:Requests"] ?? "requests",
+            [SupervisorEventType.Response] = configuration["Queues:Responses"] ?? "responses",
+            [SupervisorEventType.DeliveryUrl] = configuration["Queues:DeliveryUrls"] ?? "delivery_urls"
+
         };
 
         // Bind exchanges
@@ -50,11 +54,15 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         _channel.BasicQosAsync(0, 1, false); // Fair dispatch
     }
     
-    public override async Task SendEventAsync(SupervisorEvent eventData, Guid? instanceId = null, Guid correlationId = new Guid())
+    public override async Task SendEventAsync(SupervisorEvent eventData, Guid? instanceId = null, Guid? correlationId = null)
     {
         if (eventData == null)
         {
             throw new ArgumentNullException(nameof(eventData), "Event data cannot be null");
+        }
+        if (correlationId == null)
+        {
+            correlationId = Guid.NewGuid();
         }
 
         var body = System.Text.Encoding.UTF8.GetBytes(eventData.Value ?? "");
@@ -62,7 +70,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         {
             CorrelationId = correlationId.ToString(),
         };
-        
+
         await _channel.BasicPublishAsync(
             exchange: _exchangeNames[eventData.Type],
             routingKey: instanceId?.ToString() ?? "",
@@ -81,6 +89,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += async (model, ea) =>
         {
+            Console.WriteLine($"Received message with CorrelationId: {ea.BasicProperties.CorrelationId}, awaiting: {correlationId}");
             if (ea.BasicProperties.CorrelationId == correlationId.ToString())
             {
                 var body = ea.Body.ToArray();
@@ -88,7 +97,8 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
                 var eventData = new SupervisorEvent
                 {
                     Type = SupervisorEventType.Response,
-                    Value = message
+                    Value = message,
+                    CorrelationId = correlationId
                 };
                 tcs.SetResult(eventData);
             }
@@ -98,14 +108,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         _channel.BasicConsumeAsync(queue: queueName, autoAck: true, consumer: consumer);
 
         var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
-        if (completedTask == tcs.Task)
-        {
-            return await tcs.Task;
-        }
-        else
-        {
-            throw new TimeoutException("Awaiting response timed out");
-        }
+        return completedTask == tcs.Task ? await tcs.Task : throw new TimeoutException("Awaiting response timed out");
     }
 
     public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null, Guid? correlationId = null)
@@ -128,7 +131,8 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
             var eventData = new SupervisorEvent
             {
                 Type = eventType,
-                Value = message
+                Value = message,
+                CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };
             Console.WriteLine($"Received supervisor event: {eventData.Type} with value: {eventData.Value}");
             await handler(eventData);
