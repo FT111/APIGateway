@@ -17,19 +17,45 @@ public static class Models
         public required DateTime UpdatedAt { get; init; }
         
         public required string StatusTitle { get; init; }
-        public string? StatusHexColour { get; init; }
+        public required string? StatusHexColour { get; init; }
+    }
+    
+    public class DeploymentWithSchemaAndTargetResponse : DeploymentResponse
+    {
+        public required Schemas.Models.SchemaWithMinifiedEndpointsResponse Schema { get; set; }
+        public required Targets.Models.TargetResponse Target { get; set; }
     }
 }
 
 public static class Mapping
 {
-    public static readonly System.Linq.Expressions.Expression<System.Func<GatewayPluginContract.Entities.Deployment, Models.DeploymentResponse>> ToResponse = deployment => new Models.DeploymentResponse
+    public static readonly System.Linq.Expressions.Expression<System.Func<GatewayPluginContract.Entities.Deployment, Models.DeploymentWithSchemaAndTargetResponse>> ToResponse = deployment => new Models.DeploymentWithSchemaAndTargetResponse
     {
         Id = deployment.Id,
         Title = deployment.Title,
         CreatedAt = deployment.CreatedAt,
         UpdatedAt = deployment.UpdatedAt,
         StatusTitle = deployment.Status.Title,
-        StatusHexColour = deployment.Status.HexColour
+        StatusHexColour = deployment.Status.HexColour,
+        Schema = deployment.Schema != null ? new Schemas.Models.SchemaWithMinifiedEndpointsResponse
+        {
+            Id = deployment.Schema.Id,
+            Title = deployment.Schema.Title,
+            Description = deployment.Schema.Description,
+            CreatedAt = deployment.Schema.CreatedAt,
+            UpdatedAt = deployment.Schema.UpdatedAt,
+            EndpointCount = deployment.Schema.Endpoints.Count
+        } : null,
+        Target = deployment.Target != null ? new Targets.Models.TargetResponse
+        {
+            Id = deployment.Target.Id,
+            Url = deployment.Target.Schema + deployment.Target.Host + deployment.Target.BasePath,
+            Scheme = deployment.Target.Schema,
+            Host = deployment.Target.Host,
+            Path = deployment.Target.BasePath,
+            Fallback = deployment.Target.Fallback,
+            CreatedAt = deployment.Target.CreatedAt,
+            UpdatedAt = deployment.Target.UpdatedAt
+        } : null
     };
 }

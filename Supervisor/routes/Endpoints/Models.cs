@@ -47,7 +47,8 @@ public static class Mapping
             CreatedAt = endpoint.Deployment.CreatedAt,
             UpdatedAt = endpoint.Deployment.UpdatedAt,
             StatusTitle = endpoint.Deployment.Status.Title,
-            StatusHexColour = endpoint.Deployment.Status.HexColour
+            StatusHexColour = endpoint.Deployment.Status.HexColour,
+            
         },
         Target = endpoint.Target!=null ? new Targets.Models.TargetResponse
         {

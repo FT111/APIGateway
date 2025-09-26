@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Supervisor.auth;
 using Supervisor.routes;
 using Newtonsoft.Json;
+using Supervisor.services;
 using Instances = Supervisor.services.Instances;
 
 namespace Supervisor;
@@ -89,6 +90,7 @@ public static class Program
         Console.WriteLine(app.Services.GetRequiredService<AuthHandler>().GeneratePasswordHash("test"));
 
         Handler.HandleRoutes(app);
+        var packageManager = app.Services.GetRequiredService<PackageManager>();
         
         app.Run();
 

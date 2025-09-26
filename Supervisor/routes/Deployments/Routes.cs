@@ -9,7 +9,7 @@ public class Routes
         var group = app.MapGroup("/deployments").RequireAuthorization();
         group.MapGet("/",
             async (HttpContext context, InternalTypes.Repositories.Gateway data,
-                Utils.ResponseStructure<Models.DeploymentResponse> res) =>
+                Utils.ResponseStructure<Models.DeploymentWithSchemaAndTargetResponse> res) =>
             {
                 var deployments = data.Context.Set<GatewayPluginContract.Entities.Deployment>()
                     .Include(d => d.Status)
@@ -52,5 +52,24 @@ public class Routes
                 data.Context.Entry(existingDeployment).CurrentValues.SetValues(deployment);
                 return Results.NoContent();
             }).WithName("UpdateDeployment");
+        
+        group.MapDelete("/{id:guid}", async (Guid id, InternalTypes.Repositories.Gateway data, Utils.ResponseStructure<string> res) =>
+        {
+            try
+            {
+                var existingDeployment = await data.GetRepo<GatewayPluginContract.Entities.Deployment>().GetAsync(id);
+                if (existingDeployment == null)
+                {
+                    return Results.NotFound();
+                }
+                
+                await data.GetRepo<GatewayPluginContract.Entities.Deployment>().RemoveAsync(existingDeployment.Id.ToString());
+                return Results.Ok(res.WithData($"Deployment {id} removed successfully"));
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message, statusCode: 500);
+            }
+        }).WithName("DeleteDeployment");
     }
 }
