@@ -13,10 +13,32 @@ public class Routes
             {
                 var deployments = data.Context.Set<GatewayPluginContract.Entities.Deployment>()
                     .Include(d => d.Status)
+                    .Include(d => d.Schema)
+                    .Include(d => d.Target)
                     .AsNoTracking()
                     .Select(Mapping.ToResponse);
                 return await res.WithData(deployments).WithPagination();
             }).WithTags("Queryable").WithName("GetDeployments");
+        
+        group.MapGet("/{id:guid}",
+            async (Guid id, InternalTypes.Repositories.Gateway data,
+                Utils.ResponseStructure<Models.DeploymentWithEndpointsResponse> res) =>
+            {
+                var deployment = await data.Context.Set<GatewayPluginContract.Entities.Deployment>()
+                    .Include(d => d.Status)
+                    .Include(d => d.Schema)
+                    .Include(d => d.Schema)
+                    .Include(d => d.Endpoints)
+                    .Include(e => e.Target)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.Id == id);
+                if (deployment == null)
+                {
+                    return Results.NotFound();
+                }
+                var mappedResponse = Mapping.ToWithEndpointsResponse.Compile()(deployment);
+                return Results.Ok(res.WithData(mappedResponse));
+            }).WithTags("Queryable").WithName("GetDeploymentById");
 
         group.MapPost("/",
             async (HttpContext context, InternalTypes.Repositories.Gateway data,
