@@ -13,5 +13,6 @@ public static class Handler
         new Targets.Routes(app);
         new Pipes.Routes(app);
         new Endpoints.Routes(app);
+        new Deployments.Routes(app);
     }
 }

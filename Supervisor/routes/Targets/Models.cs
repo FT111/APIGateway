@@ -6,6 +6,7 @@ public static class Models
 {
     public class TargetResponse
     {
+        [Queryable]
         public Guid Id { get; set; }
         
         [Queryable]
@@ -17,6 +18,7 @@ public static class Models
         public bool Fallback { get; set; }
         [Sortable]
         public DateTime CreatedAt { get; set; }
+        [Sortable]
         public DateTime UpdatedAt { get; set; }
     }
     

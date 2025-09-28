@@ -7,6 +7,7 @@ public static class Models
 {
     public class EndpointResponse
     {
+        [Queryable]
         public Guid Id { get; set; }
         [Queryable]
         [Sortable]
@@ -14,10 +15,11 @@ public static class Models
         public string? TargetPathPrefix { get; set; }
         [Sortable]
         public DateTime CreatedAt { get; set; }
+        [Sortable]
         public DateTime UpdatedAt { get; set; }
         
         public Deployments.Models.DeploymentResponse Deployment { get; set; } = null!;
-        public required Targets.Models.TargetResponse? Target { get; set; }
+        public Targets.Models.TargetResponse? Target { get; set; }
     }
     
     public class CreateEndpointRequest
