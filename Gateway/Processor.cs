@@ -178,10 +178,18 @@ public class RequestPipeline
             }
             
             // Load configuration using the endpoint object
-            context.PluginConfiguration = await _configManager.GetServiceConfigsAsync(context.Endpoint);
-            var config = await _configManager.GetPipeConfigAsync(context.Endpoint);
-            UsePipeConfig(config); 
+            if (context.Endpoint == null)
+            {
+                throw new InvalidOperationException("No endpoint matched for the request path. Cannot load configuration.");
+            }
+            var pipeDefinition = context.Endpoint.Pipe.PipeServices;
+            var pipeConfig = _configManager.GetPipeFromDefinition(pipeDefinition);
+            var indexedConfigs = _configManager.ConvertPluginConfigsToDict(context.Endpoint.Pipe.PluginConfigs);
+            context.PluginConfiguration = indexedConfigs;
+            
+            UsePipeConfig(pipeConfig); 
         }
+        
         context.LogRequest.SourceAddress = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "Unknown";
         context.LogRequest.EndpointId = context.Endpoint?.Id ?? null;
     }

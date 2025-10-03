@@ -32,7 +32,10 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public async Task RebuildRouterAsync()
     {
         var deployments = Store.CreateStore().Context.Set<Deployment>().Include(d => d.Target)
-            .Include(d => d.Endpoints).ThenInclude(e => e.Parent);
+            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
+            .ThenInclude(p => p.PipeServices)
+            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
+            .ThenInclude(p => p.PluginConfigs);
         await deployments.LoadAsync();
         Pipe.Router = RouterFactory.BuildRouteTrie(deployments.ToList());
     }
@@ -64,9 +67,6 @@ public class GatewayBuilder(IConfiguration configuration)
             
         await supervisorClient.StartAsync();
         
-        gateway.ConfigurationsProvider.LoadPipeConfigs();
-        gateway.ConfigurationsProvider.LoadServiceConfigs();
-        
         var context = StoreFactory.CreateStore().Context;
         var instance = await context.Set<Instance>().FindAsync(identity.Id);
         if (instance == null)
@@ -96,7 +96,10 @@ public class GatewayBuilder(IConfiguration configuration)
         }
 
         var deployments = StoreFactory.CreateStore().Context.Set<Deployment>().Include(d => d.Target)
-            .Include(d => d.Endpoints).ThenInclude(e => e.Parent);
+            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
+            .ThenInclude(p => p.PipeServices)
+            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
+            .ThenInclude(p => p.PluginConfigs);
         deployments.Load();
         return RouterFactory.BuildRouteTrie(deployments.ToList());
         
@@ -120,7 +123,6 @@ public class GatewayBuilder(IConfiguration configuration)
     public async Task WithConfigurationsProvider(IConfigurationsProvider configurationsProvider)
     {
         ConfigurationsProvider = configurationsProvider ?? throw new ArgumentNullException(nameof(configurationsProvider));
-        await ConfigurationsProvider.InitialiseAsync(PluginManager, StoreFactory.CreateStore().GetRepoFactory());
     }
     
     public async Task LoadPluginServicesAsync(string pluginDirectory)
@@ -149,7 +151,6 @@ public class GatewayBuilder(IConfiguration configuration)
             ?? throw new InvalidOperationException("TaskQueue service not found.");
         ConfigurationsProvider = PluginManager.Registrar.GetServiceByName<IConfigurationsProvider>(serviceIdentifiers["ConfigurationProvider"]).Instance
             ?? throw new InvalidOperationException("ConfigurationProvider service not found.");
-        await ConfigurationsProvider.InitialiseAsync(PluginManager, StoreFactory.CreateStore().GetRepoFactory());
         
         return await Build();
     }

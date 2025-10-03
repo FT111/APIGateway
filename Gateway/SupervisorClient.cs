@@ -102,10 +102,6 @@ public class SupervisorClient(
                 await Task.Delay(1000); // Give the new process a moment to start
                 Environment.Exit(0);
                 break;
-            case "update_configurations":
-                gateway.ConfigurationsProvider.LoadPipeConfigs();
-                gateway.ConfigurationsProvider.LoadServiceConfigs();
-                break;
             case "update_routes":
                 await gateway.RebuildRouterAsync();
                 break;
