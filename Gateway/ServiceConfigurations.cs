@@ -1,4 +1,5 @@
 using GatewayPluginContract;
+using GatewayPluginContract.Entities;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
 namespace Gateway;
@@ -7,10 +8,7 @@ using System.Collections.Generic;
 
 public interface IConfigurationsProvider : IService
 {
-    Task InitialiseAsync (PluginManager pluginManager, Repositories repositories);
-    Task<PipeConfiguration> GetPipeConfigAsync(Endpoint? endpoint = null);
-    Task<Dictionary<string, Dictionary<string, string>>> GetServiceConfigsAsync(Endpoint? endpoint = null);
+    PipeConfiguration GetPipeFromDefinition(ICollection<PipeService> services);
+    Dictionary<string, Dictionary<string, string>> ConvertPluginConfigsToDict(ICollection<PluginConfig>? configs);
 
-    void LoadPipeConfigs();
-    void LoadServiceConfigs();
 }
