@@ -14,8 +14,7 @@ public class PipeConfiguration
 {
     public required List<PipeProcessorContainer> PreProcessors { get; set; } 
     public required List<PipeProcessorContainer> PostProcessors { get; set; }
-    public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; }
-    public Endpoint? Endpoint { get; init; }
+    public required  GatewayPluginContract.IRequestForwarder? Forwarder { get; set; } 
 }
 
 // public class PipeRecipeServiceContainer
@@ -197,6 +196,8 @@ public interface IPlugin
     public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar);
     
     public void ConfigureDataRegistrar(IDataRegistrar registrar);
+    
+    public void InitialiseServiceConfiguration(DbContext context);
 }
 
 public abstract class StoreFactory(IConfiguration configuration) : IService

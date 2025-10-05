@@ -151,7 +151,10 @@ public class SupervisorClient(
                 await gateway.PluginManager.RemovePluginAsync(plugin);
             }
                     
+            // Load new plugins
             await gateway.PluginManager.LoadPluginsAsync("services/plugins");
+            // Initialise newly installed plugins
+            gateway.PluginInitManager.InitialiseFromPluginManager(gateway.PluginManager);
                     
             var finalVerification =
                 await gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>()

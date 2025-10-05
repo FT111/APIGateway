@@ -108,6 +108,18 @@ public partial class EfDbContext : DbContext
                 .HasForeignKey(d => d.Endpointid)
                 .HasConstraintName("events_endpoints_id_fk");
         });
+        
+        modelBuilder.Entity<Plugin>(entity =>
+        {
+            entity.HasKey(e => new { e.Title, e.Version }).HasName("plugins_pk");
+
+            entity.ToTable("plugins");
+
+            entity.Property(e => e.Title)
+                .HasColumnName("title");
+            entity.Property(e => e.Version)
+                .HasColumnName("version");
+        });
 
         modelBuilder.Entity<Pipe>(entity =>
         {

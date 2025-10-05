@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Gateway;
 
 
-public class PluginManager(IConfiguration configuration) 
+public class PluginManager(IConfiguration configuration)
 {
     private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-    private List<IPlugin> _plugins = [];
+    internal List<IPlugin> Plugins = [];
     internal string PluginDeliveryUrl = string.Empty;
     internal readonly PluginServiceRegistrar Registrar = new();
     
@@ -29,7 +29,7 @@ public class PluginManager(IConfiguration configuration)
 
     private void ResolveDependencies()
     {
-        foreach (var plugin in _plugins)
+        foreach (var plugin in Plugins)
         {
             var manifest = plugin.GetManifest();
             if (manifest.Dependencies.Count == 0) continue;
@@ -37,7 +37,7 @@ public class PluginManager(IConfiguration configuration)
             manifest.Dependencies?.ForEach(dep =>
             {
                 // Check if the dependency is provided
-                if (_plugins.Any(p =>
+                if (Plugins.Any(p =>
                         p.GetManifest().Name == dep.Name && dep.VersionCheck(p.GetManifest().Version)))
                 {
                     // If the dependency is provided, set it as provided
@@ -82,7 +82,7 @@ public class PluginManager(IConfiguration configuration)
     public Task LoadPluginsAsync(string path)
     {
         Registrar.Reset();
-        _plugins.Clear();
+        Plugins.Clear();
         List<McMaster.NETCore.Plugins.PluginLoader> pluginLoaders = PluginLoader.GetPluginLoaders(path);
 
         foreach (var pluginLoader in pluginLoaders)
@@ -96,7 +96,7 @@ public class PluginManager(IConfiguration configuration)
                     continue;
                 }
 
-                _plugins.Add(plugin);
+                Plugins.Add(plugin);
                 
                 plugin.ConfigurePluginRegistrar(Registrar);
             }
@@ -120,7 +120,7 @@ public class PluginManager(IConfiguration configuration)
     public async Task<PluginVerificationResult> VerifyInstalledPluginsAsync(IQueryable<PipeService> services)
     {
         var requiredPlugins = await ResolveRequiredPluginsAsync(services);
-        var installedPlugins = new HashSet<string>(_plugins.Select(p =>
+        var installedPlugins = new HashSet<string>(Plugins.Select(p =>
             p.GetManifest().Name + "_" + p.GetManifest().Version));
         
         return new PluginVerificationResult

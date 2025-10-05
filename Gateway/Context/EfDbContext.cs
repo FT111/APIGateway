@@ -77,6 +77,18 @@ public partial class EfDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("endpoints_targets_id_fk");
         });
+        
+        modelBuilder.Entity<Plugin>(entity =>
+        {
+            entity.HasKey(e => new { e.Title, e.Version }).HasName("plugins_pk");
+
+            entity.ToTable("plugins");
+
+            entity.Property(e => e.Title)
+                .HasColumnName("title");
+            entity.Property(e => e.Version)
+                .HasColumnName("version");
+        });
 
         modelBuilder.Entity<Event>(entity =>
         {

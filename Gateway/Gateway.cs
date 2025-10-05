@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Gateway;
 
 // Main director
-public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, Identity.Identity identity, RouteTrie router)
+public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, Identity.Identity identity, RouteTrie router, PluginInitialisation.PluginInitialisationManager pluginInitManager)
 {
     public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
     public StoreFactory Store { get; } = store;
@@ -15,6 +15,8 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
     public PluginManager PluginManager { get; set; } = pluginManager;
     public Identity.Identity Identity { get; init; } = identity;
+    public PluginInitialisation.PluginInitialisationManager PluginInitManager { get; init; } = pluginInitManager!;
+
     public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder().
         WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
@@ -54,13 +56,15 @@ public class GatewayBuilder(IConfiguration configuration)
     private SupervisorAdapter SupervisorAdapter { get; set; } = null!;
     private LocalTaskQueue LocalTaskQueue { get; set; } = null!;
     private IConfigurationsProvider ConfigurationsProvider { get; set; } = null!;
+
+    private PluginInitialisation.PluginInitialisationManager PluginInitManager { get; set; } = null!;
     private PluginManager PluginManager { get; set; } = new PluginManager(configuration);
     
     public async Task<GatewayBuild> Build()
     {
         var identity = new Identity.Identity(_configuration);
         var router = WithRouter();
-        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager, identity, router);
+        var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider, PluginManager, identity, router, PluginInitManager);
         gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));
@@ -151,6 +155,8 @@ public class GatewayBuilder(IConfiguration configuration)
             ?? throw new InvalidOperationException("TaskQueue service not found.");
         ConfigurationsProvider = PluginManager.Registrar.GetServiceByName<IConfigurationsProvider>(serviceIdentifiers["ConfigurationProvider"]).Instance
             ?? throw new InvalidOperationException("ConfigurationProvider service not found.");
+        
+        PluginInitManager = new PluginInitialisation.PluginInitialisationManager(StoreFactory.CreateStore().Context, PluginManager);
         
         return await Build();
     }
