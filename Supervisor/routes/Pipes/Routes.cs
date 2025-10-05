@@ -1,3 +1,4 @@
+using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +10,7 @@ public class Routes
     {
         var route = app.MapGroup("/pipes").RequireAuthorization();
         
-        route.MapGet("/", async (InternalTypes.Repositories.Supervisor data, Utils.ResponseStructure<Models.PipeResponse> res) =>
+        route.MapGet("/", async (InternalTypes.Repositories.Gateway data, Utils.ResponseStructure<Models.PipeResponse> res) =>
         {
             var pipes = data.Context.Set<Pipe>()
                 .Include(p => p.Endpoints)
@@ -21,7 +22,7 @@ public class Routes
             return Results.Ok(paginatedPipes);
         });
         
-        route.MapGet("/{id:guid}", async (Guid id, InternalTypes.Repositories.Supervisor data, Utils.ResponseStructure<Models.PipeResponse> res) =>
+        route.MapGet("/{id:guid}", async (Guid id, InternalTypes.Repositories.Gateway data, Utils.ResponseStructure<Models.PipeResponse> res) =>
         {
             var pipe = await data.GetRepo<Pipe>().GetAsync(id);
             if (pipe == null) return Results.NotFound();
@@ -29,7 +30,7 @@ public class Routes
             return Results.Ok(res.WithData(mappedResponse));
         });
         
-        route.MapPost("/", async (Pipe pipe, InternalTypes.Repositories.Supervisor data, Utils.ResponseStructure<Models.PipeResponse> res) =>
+        route.MapPost("/", async (Pipe pipe, InternalTypes.Repositories.Gateway data, Utils.ResponseStructure<Models.PipeResponse> res) =>
         {
             if (pipe.Id == Guid.Empty)
             {
@@ -53,6 +54,23 @@ public class Routes
             }
 
             await data.GetRepo<Pipe>().UpdateAsync(pipe);
+            return Results.NoContent();
+        });
+        
+        route.MapPut("/{id:guid:required}/{serviceIdentifier:required}/configuration", async (Guid id, string serviceIdentifier, Dictionary<string, string> configuration, InternalTypes.Repositories.Gateway data) =>
+        {
+            Dictionary<string, PluginConfig> configs = data.Context.Set<PluginConfig>().Where(pc => pc.Namespace == serviceIdentifier).ToDictionary(pc => pc.Key, pc => pc);
+            
+            foreach (var keyValuePair in configuration)
+            {
+                // Only allow updating existing configs
+                // Only plugins can create new configs key/values
+                if (!configs.ContainsKey(keyValuePair.Key)) continue;
+                configs[keyValuePair.Key].Value = keyValuePair.Value;
+                data.Context.Set<PluginConfig>().Update(configs[keyValuePair.Key]);
+            }
+            await data.Context.SaveChangesAsync();
+            
             return Results.NoContent();
         });
         
