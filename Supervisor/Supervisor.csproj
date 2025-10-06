@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <OutputType>Exe</OutputType>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+        <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
+        <PackageReference Include="McMaster.NETCore.Plugins" Version="2.0.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.8" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+        <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\GatewayPluginContract\GatewayPluginContract.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="routes\Static\" />
+      <Folder Include="services\plugins\Lecti_0.1\bin\Debug\net9.0\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\bin\Release\net9.0\publish\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\bin\Release\net9.0\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\obj\project.assets.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\obj\project.packagespec.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\obj\Telecti.csproj.nuget.dgspec.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\Telecti.deps.json" />
+    </ItemGroup>
+
+</Project>
