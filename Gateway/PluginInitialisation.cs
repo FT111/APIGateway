@@ -60,7 +60,14 @@ public static class PluginInitialisation
             }
 
             Console.WriteLine($"Initialising plugin '{pluginKey}'...");
-            plugin.InitialiseServiceConfiguration(_context);
+
+            Task AddConfig(PluginConfig conf)
+            {
+                _context.Set<PluginConfig>().Add(conf);
+                return Task.CompletedTask;
+            }
+            plugin.InitialiseServiceConfiguration(_context, AddConfig);
+            _context.SaveChanges();
             RegisterPlugin(pluginKey);
             Console.WriteLine($"Plugin '{pluginKey}' initialised.");
         }
