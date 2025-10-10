@@ -113,7 +113,7 @@ public class RouteNode
     public string Segment { get; set; } = null!;
     public Dictionary<string, RouteNode> Children { get; set; } = new Dictionary<string, RouteNode>();
     public Endpoint? Endpoint { get; set; } = null;
-    public Deployment? Deployment => Endpoint?.Deployment;
+    public Dictionary<string, Dictionary<string, string>> RoutedPluginConfs { get; set; } = new Dictionary<string, Dictionary<string, string>>();
     public Target? Target;
 }
 
@@ -197,7 +197,7 @@ public interface IPlugin
     
     public void ConfigureDataRegistrar(IDataRegistrar registrar);
     
-    public void InitialiseServiceConfiguration(DbContext context);
+    public void InitialiseServiceConfiguration(DbContext context, Func<PluginConfig, Task> addConfig);
 }
 
 public abstract class StoreFactory(IConfiguration configuration) : IService

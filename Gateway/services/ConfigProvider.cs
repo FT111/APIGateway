@@ -9,6 +9,12 @@ public class ConfigProvider : IConfigurationsProvider
 {
     private readonly IConfiguration _configuration;
     
+    public ConfigProvider(IConfiguration configuration, PluginManager pluginManager)
+    {
+        _configuration = configuration;
+        _pluginManager = pluginManager;
+    }
+    
     // Cached configurations
     private PipeConfiguration _globalConfiguration = new PipeConfiguration
     {
@@ -28,11 +34,6 @@ public class ConfigProvider : IConfigurationsProvider
     
     private Repositories? _dataRepos;
     private PluginManager? _pluginManager;
-
-    public ConfigProvider(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
 
     private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, ServiceFailurePolicies onFailure, List<PipeProcessorContainer> processorList,
         PluginManager.PluginServiceRegistrar registry)

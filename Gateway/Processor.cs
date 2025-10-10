@@ -150,6 +150,7 @@ public class RequestPipeline
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
         LogRequestAsync(context);
+        Console.WriteLine($"Processed Request to {context.Target.Id}");
     }
     
     private async Task SetupPipeline(RequestContext context)
@@ -184,7 +185,7 @@ public class RequestPipeline
             }
             var pipeDefinition = context.Endpoint.Pipe.PipeServices;
             var pipeConfig = _configManager.GetPipeFromDefinition(pipeDefinition);
-            var indexedConfigs = _configManager.ConvertPluginConfigsToDict(context.Endpoint.Pipe.PluginConfigs);
+            var indexedConfigs = context.Route?.RoutedPluginConfs;
             context.PluginConfiguration = indexedConfigs;
             
             UsePipeConfig(pipeConfig); 

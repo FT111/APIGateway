@@ -6,7 +6,7 @@ namespace Gateway;
 using System.Collections.Generic;
 
 
-public interface IConfigurationsProvider : IService
+public interface IConfigurationsProvider
 {
     PipeConfiguration GetPipeFromDefinition(ICollection<PipeService> services);
     Dictionary<string, Dictionary<string, string>> ConvertPluginConfigsToDict(ICollection<PluginConfig>? configs);

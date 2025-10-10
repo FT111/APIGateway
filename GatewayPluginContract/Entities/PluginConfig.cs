@@ -8,9 +8,9 @@ public partial class PluginConfig : Entity
 
     public string Namespace { get; set; } = null!;
 
-    public Guid PipeId { get; set; }
+    public Guid? PipeId { get; set; }
 
     public bool Internal { get; set; }
 
-    public virtual Pipe Pipe { get; set; } = null!;
+    public virtual Pipe? Pipe { get; set; } = null!;
 }

@@ -33,13 +33,16 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     
     public async Task RebuildRouterAsync()
     {
-        var deployments = Store.CreateStore().Context.Set<Deployment>().Include(d => d.Target)
+        var context = Store.CreateStore().Context;
+        var deployments = context.Set<Deployment>().Include(d => d.Target)
             .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
             .ThenInclude(p => p.PipeServices)
             .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
             .ThenInclude(p => p.PluginConfigs);
+        var globalPluginConfigs = context.Set<PluginConfig>().Where(pc => pc.PipeId == null).ToList();
+        var structuredGlobalConfs = ConfigurationsProvider.ConvertPluginConfigsToDict(globalPluginConfigs);
         await deployments.LoadAsync();
-        Pipe.Router = RouterFactory.BuildRouteTrie(deployments.ToList());
+        Pipe.Router = RouterFactory.BuildRouteTrie(deployments.ToList(), structuredGlobalConfs, ConfigurationsProvider);
     }
 }
 
@@ -99,13 +102,16 @@ public class GatewayBuilder(IConfiguration configuration)
             throw new InvalidOperationException("StoreFactory must be set before building the router.");
         }
 
-        var deployments = StoreFactory.CreateStore().Context.Set<Deployment>().Include(d => d.Target)
+        var dbContext = StoreFactory.CreateStore().Context;
+        var deployments = dbContext.Set<Deployment>().Include(d => d.Target)
             .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
             .ThenInclude(p => p.PipeServices)
             .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
             .ThenInclude(p => p.PluginConfigs);
+        var globalPluginConfigs = dbContext.Set<PluginConfig>().Where(pc => pc.PipeId == null).ToList();
+        var structuredGlobalConfs = ConfigurationsProvider.ConvertPluginConfigsToDict(globalPluginConfigs);
         deployments.Load();
-        return RouterFactory.BuildRouteTrie(deployments.ToList());
+        return RouterFactory.BuildRouteTrie(deployments.ToList(), structuredGlobalConfs, this.ConfigurationsProvider);
         
     }
     public void WithStoreProvider(StoreFactory storeFactory)
@@ -153,9 +159,8 @@ public class GatewayBuilder(IConfiguration configuration)
             ?? throw new InvalidOperationException("SupervisorClient service not found.");
         LocalTaskQueue = PluginManager.Registrar.GetServiceByName<LocalTaskQueue>(serviceIdentifiers["TaskQueue"]).Instance
             ?? throw new InvalidOperationException("TaskQueue service not found.");
-        ConfigurationsProvider = PluginManager.Registrar.GetServiceByName<IConfigurationsProvider>(serviceIdentifiers["ConfigurationProvider"]).Instance
-            ?? throw new InvalidOperationException("ConfigurationProvider service not found.");
         
+        ConfigurationsProvider = new ConfigProvider(configuration, PluginManager);
         PluginInitManager = new PluginInitialisation.PluginInitialisationManager(StoreFactory.CreateStore().Context, PluginManager);
         
         return await Build();
