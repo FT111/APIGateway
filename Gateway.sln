@@ -43,4 +43,6 @@ Global
 		{FEAD4037-54D1-48E9-9C4A-DB8CE55C3C77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FEAD4037-54D1-48E9-9C4A-DB8CE55C3C77}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+	EndGlobalSection
 EndGlobal

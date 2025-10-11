@@ -5,17 +5,67 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <UserSecretsId>ec3048b8-6d4b-4265-b3cb-05fa64cb67f0</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+        <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
         <PackageReference Include="McMaster.NETCore.Plugins" Version="2.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.6">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+        <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\GatewayPluginContract\GatewayPluginContract.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="services\plugins\Lecti\Microsoft.Net.Http.Headers.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.Extensions.Configuration.Abstractions.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.AspNetCore.WebUtilities.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
+      <None Remove="services\plugins\Lecti\Lecti.dll" />
+      <None Remove="services\plugins\Lecti\Lecti.pdb" />
+      <None Remove="services\plugins\Lecti\Microsoft.AspNetCore.Http.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.AspNetCore.Http.Features.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.AspNetCore.Http.Abstractions.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.Extensions.Primitives.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.Extensions.ObjectPool.dll" />
+      <None Remove="services\plugins\Lecti\Microsoft.Extensions.Options.dll" />
+      <None Remove="services\plugins\Lecti\GatewayPluginContract.pdb" />
+      <None Remove="services\plugins\Lecti\GatewayPluginContract.dll" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\bin\Release\net9.0\publish\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\bin\Release\net9.0\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\obj\project.assets.json" />
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\obj\project.packagespec.json" />
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\obj\Release\net9.0\Telecti.sourcelink.json" />
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\obj\Telecti.csproj.nuget.dgspec.json" />
+      <_ContentIncludedByDefault Remove="routes\Telecti_0.1\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\bin\Release\net9.0\Lecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\bin\Release\net9.0\osx-arm64\Lecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\obj\Lecti.csproj.nuget.dgspec.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\obj\project.assets.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\obj\project.packagespec.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\obj\Release\net9.0\Lecti.sourcelink.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\obj\Release\net9.0\osx-arm64\Lecti.sourcelink.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\bin\Release\net9.0\publish\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\bin\Release\net9.0\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\obj\project.assets.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\obj\project.packagespec.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\obj\Release\net9.0\Telecti.sourcelink.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\obj\Telecti.csproj.nuget.dgspec.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti.deps.json" />
     </ItemGroup>
 
 </Project>

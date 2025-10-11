@@ -30,4 +30,4 @@ riderModule.iml
 
 !/Gateway/services/plugins/Lecti/GatewayPluginContract.dll
 
-*.dll
+!*.dll
