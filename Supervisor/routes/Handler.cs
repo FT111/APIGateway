@@ -14,5 +14,6 @@ public static class Handler
         new Pipes.Routes(app);
         new Endpoints.Routes(app);
         new Deployments.Routes(app);
+        new Plugins.Routes(app);
     }
 }
