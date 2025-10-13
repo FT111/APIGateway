@@ -10,9 +10,22 @@ public static class PluginLoader
 
     private static System.Collections.IEnumerable GetPluginDlls(string subDirectory)
     {
-        // var fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
-        var fullDir = "/Users/freddietaylor/Projects/C#Stuff/Gateway/Gateway/services/plugins";
-        foreach (var dir in Directory.GetDirectories(fullDir))
+        string fullDir;
+        ICollection<string> pluginDirs;
+        try
+        {
+            fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
+            pluginDirs = Directory.GetDirectories(fullDir);
+            
+        }
+        catch (Exception e)
+        {
+            subDirectory = "../../../../";
+            fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
+            pluginDirs = Directory.GetDirectories(fullDir);
+        }
+        // var fullDir = "/Users/freddietaylor/Projects/C#Stuff/Gateway/Gateway/services/plugins";
+        foreach (var dir in pluginDirs)
         {
             List<string> potentialDlls = [];
             var dirName = Path.GetFileName(dir);
