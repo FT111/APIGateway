@@ -178,6 +178,16 @@ public interface IPluginServiceRegistrar
 public interface IDataRegistrar
 {
     void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
+    
+    void RegisterConfigConstraint(PluginConfigConstriction constraint);
+}
+
+public class PluginConfigConstriction
+{
+    public required string Key { get; init; }
+    public required string PluginNamespace { get; init; }
+    public required Predicate<string> ValueConstraint { get; init; }
+    
 }
 
 public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation

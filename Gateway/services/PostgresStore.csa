@@ -7,11 +7,11 @@ namespace Gateway.services;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 
-public class PostgresStore : IStore
+public class PostgresRepoFactory : IRepoFactory
 {
     private readonly NpgsqlDataSourceBuilder _dbFactory;
     private readonly NpgsqlDataSource _db;
-    public PostgresStore(IConfiguration config)
+    public PostgresRepoFactory(IConfiguration config)
     {
         var connectionString = config.GetConnectionString("Postgres") ??
                                throw new InvalidOperationException("Connection string 'Postgres' not found in configuration.");
@@ -188,7 +188,7 @@ public class PostgresStore : IStore
         
         await using var command = _db.CreateCommand("""
         SELECT key, value, type, namespace, endpointid, internal
-        FROM pluginconfigs 
+        FROM PluginConfigs 
         WHERE endpointid = $1; 
         """);
         
@@ -219,11 +219,11 @@ public class PostgresStore : IStore
         // If an endpoint is specified, also include global configs that are not overridden by the endpoint
         await using var command2 = _db.CreateCommand("""
         SELECT key, value, type, namespace, endpointid, internal
-        FROM pluginconfigs 
+        FROM PluginConfigs 
         WHERE endpointid IS NULL
         AND (key, namespace) NOT IN (
             SELECT key, namespace 
-        FROM pluginconfigs 
+        FROM PluginConfigs 
         WHERE endpointid = $1
             );
         """);
