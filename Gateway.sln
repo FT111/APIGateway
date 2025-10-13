@@ -6,9 +6,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestPlugin1", "Gateway\serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GatewayPluginContract", "GatewayPluginContract\GatewayPluginContract.csproj", "{82F841D9-B18B-4E65-8B35-4316E1E78FAA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lecti", "..\Lecti\Lecti.csproj", "{44F886CB-051D-4816-96F3-B8B257567E54}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lecti", ".\Lecti\Lecti.csproj", "{44F886CB-051D-4816-96F3-B8B257567E54}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Telecti", "..\Telecti\Telecti.csproj", "{5CCA097E-F1D4-4BD7-8A58-4A59306A5233}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Telecti", ".\Telecti\Telecti.csproj", "{5CCA097E-F1D4-4BD7-8A58-4A59306A5233}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Supervisor", "Supervisor\Supervisor.csproj", "{FEAD4037-54D1-48E9-9C4A-DB8CE55C3C77}"
 EndProject

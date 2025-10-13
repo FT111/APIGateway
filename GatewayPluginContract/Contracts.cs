@@ -179,10 +179,10 @@ public interface IDataRegistrar
 {
     void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
     
-    void RegisterConfigConstraint(PluginConfigConstriction constraint);
+    void RegisterConfigConstraint(PluginConfigConstraint constraint);
 }
 
-public class PluginConfigConstriction
+public class PluginConfigConstraint
 {
     public required string Key { get; init; }
     public required string PluginNamespace { get; init; }

@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\GatewayPluginContract\GatewayPluginContract.csproj" />
+      <ProjectReference Include="..\Gateway\GatewayPluginContract\GatewayPluginContract.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="GatewayPluginContract.dll" />
+      <None Remove="GatewayPluginContract.pdb" />
+      <None Remove="Microsoft.AspNetCore.Http.dll" />
+      <None Remove="Microsoft.AspNetCore.Http.Abstractions.dll" />
+      <None Remove="Microsoft.AspNetCore.Http.Features.dll" />
+      <None Remove="Microsoft.AspNetCore.WebUtilities.dll" />
+      <None Remove="Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
+      <None Remove="Microsoft.Extensions.ObjectPool.dll" />
+      <None Remove="Microsoft.Extensions.Options.dll" />
+      <None Remove="Microsoft.Extensions.Primitives.dll" />
+      <None Remove="Microsoft.Net.Http.Headers.dll" />
+      <None Remove="Telecti.dll" />
+      <None Remove="Telecti.pdb" />
+      <None Remove="Telecti.deps.json" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Program.cs" />
+    </ItemGroup>
+
+</Project>
