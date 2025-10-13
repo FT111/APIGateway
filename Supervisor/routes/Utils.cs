@@ -2,6 +2,7 @@ using System.Reflection;
 using GatewayPluginContract.Attributes;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace Supervisor.routes;
 
@@ -61,7 +62,7 @@ public static class Utils
 
         public async Task<ResponseStructure<T>> WithPagination()
         {
-            if (Data is not IAsyncEnumerable<T> && Data is not IQueryable<T>)
+            if (Data is not IAsyncEnumerable<T> && Data is not IQueryable<T> && Data is not EntityQueryable<T>)
             {
                 throw new InvalidOperationException("Data must be of type IQueryable<T> or IAsyncEnumerable<T> to apply pagination.");
             }
