@@ -27,17 +27,52 @@ public class Lecti : IPlugin
         return _manifest;
     }
 
-    public void InitialiseServiceConfiguration(DbContext context, Func<PluginConfig, Task> addConfig)
+    public void InitialiseServiceConfiguration(DbContext context,
+        Func<Func<PluginConfigDefinition, Task>, Task> addConfig)
     {
-        addConfig(new PluginConfig(
-            )
+        addConfig(definition =>
         {
-            Namespace = _manifest.Name,
-            Key = "targets",
-            Value  = "[]"
+            definition.Key = "targets";
+            definition.DefaultValue = "[]";
+            definition.ValueConstraint = s =>
+            {
+                try
+                {
+                    var targetList = System.Text.Json.JsonSerializer.Deserialize<List<string>>(s);
+                    var parsedTargets = new HashSet<Guid>();
+                    if (targetList == null)
+                    {
+                        return true;
+                    }
+                    foreach (var targetId in targetList)
+                    {
+                        if (!Guid.TryParse(targetId, out var targetGuid))
+                        {
+                            return false;
+                        }
+
+                        try
+                        {
+                            parsedTargets.Add(targetGuid);
+                        }
+                        catch (Exception e)
+                        {
+                            return false;
+                        }
+                    }
+
+                    var matchingTargets = context.Set<Target>().Where(target => parsedTargets.Contains(target.Id));
+                    return matchingTargets.ToArray().Length == parsedTargets.Count;
+                }
+                catch (Exception e)
+                {
+                    return false;
+                }
+            };
+            return Task.FromResult(definition);
         });
     }
-    
+
     public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar)
     {
         registrar.RegisterService<Selector>(this, new Selector(), ServiceTypes.PreProcessor);

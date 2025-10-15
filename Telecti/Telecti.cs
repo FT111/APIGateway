@@ -22,7 +22,8 @@ public class Telecti : IPlugin
         }]
     };
     
-    public void InitialiseServiceConfiguration(DbContext context, Func<PluginConfig, Task> addConfig)
+    public void InitialiseServiceConfiguration(DbContext context,
+        Func<Func<PluginConfigDefinition, Task>, Task> addConfig)
     {
         
     }
