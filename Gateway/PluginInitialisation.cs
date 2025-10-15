@@ -9,6 +9,7 @@ public static class PluginInitialisation
     public class PluginConfigManager
     {
         private HashSet<string> InitializedPlugins { get; set; } = [];
+        private Dictionary<string, Dictionary<string, PluginConfigDefinition>> PluginConfigDefinitions { get; set; } =  new Dictionary<string, Dictionary<string, PluginConfigDefinition>>();
         private readonly DbContext _context;
         private readonly PluginManager _manager;
 
@@ -61,9 +62,13 @@ public static class PluginInitialisation
 
             Console.WriteLine($"Initialising plugin '{pluginKey}'...");
 
-            Task AddConfig(PluginConfig conf)
+            Task AddConfig(Func<PluginConfigDefinition, Task> conf)
             {
-                _context.Set<PluginConfig>().Add(conf);
+                conf(new PluginConfigDefinition(
+                )
+                {
+                    PluginNamespace = plugin.GetManifest().Name
+                });
                 return Task.CompletedTask;
             }
             plugin.InitialiseServiceConfiguration(_context, AddConfig);

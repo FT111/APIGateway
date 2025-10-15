@@ -179,16 +179,16 @@ public interface IDataRegistrar
 {
     void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
     
-    void RegisterConfigConstraint(PluginConfigConstraint constraint);
+    // void RegisterConfigConstraint(PluginConfigConstraint constraint);
 }
 
-public class PluginConfigConstraint
+public class PluginConfigDefinition
 {
-    public required string Key { get; init; }
+    public string Key { get; set; }
     public required string PluginNamespace { get; init; }
-    public string DefaultValue { get; init; } = "";
-    public string ValueType { get; init; } = "string";
-    public required Predicate<string> ValueConstraint { get; init; }
+    public string DefaultValue { get; set; } = "";
+    public string ValueType { get; set; } = "string";
+    public Predicate<string>? ValueConstraint { get; set; }
     
 }
 
@@ -209,7 +209,7 @@ public interface IPlugin
     
     public void ConfigureDataRegistrar(IDataRegistrar registrar);
     
-    public void InitialiseServiceConfiguration(DbContext context, Func<PluginConfig, Task> addConfig);
+    public void InitialiseServiceConfiguration(DbContext context, Func<Func<PluginConfigDefinition, Task>, Task> addConfig);
 }
 
 public abstract class StoreFactory(IConfiguration configuration) : IService
