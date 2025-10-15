@@ -6,13 +6,13 @@ namespace Gateway;
 
 public static class PluginInitialisation
 {
-    public class PluginInitialisationManager
+    public class PluginConfigManager
     {
         private HashSet<string> InitializedPlugins { get; set; } = [];
         private readonly DbContext _context;
         private readonly PluginManager _manager;
 
-        public PluginInitialisationManager(DbContext context, PluginManager manager)
+        public PluginConfigManager(DbContext context, PluginManager manager)
         {
             _context = context;
             _manager = manager;

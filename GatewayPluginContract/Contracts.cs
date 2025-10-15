@@ -186,6 +186,8 @@ public class PluginConfigConstraint
 {
     public required string Key { get; init; }
     public required string PluginNamespace { get; init; }
+    public string DefaultValue { get; init; } = "";
+    public string ValueType { get; init; } = "string";
     public required Predicate<string> ValueConstraint { get; init; }
     
 }
