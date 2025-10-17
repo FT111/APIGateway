@@ -23,9 +23,18 @@ public class Telecti : IPlugin
     };
     
     public void InitialiseServiceConfiguration(DbContext context,
-        Func<Func<PluginConfigDefinition, Task>, Task> addConfig)
+        Func<Func<PluginConfigDefinition, PluginConfigDefinition>, Task> addConfig)
     {
-        
+        addConfig(definition =>
+        {
+            definition.Key = "Enable Lecti Integration";
+            definition.DefaultValue = "true";
+            definition.ValueType = "bool";
+            definition.Internal = false;
+
+            return definition;
+        });
+
     }
 
     public PluginManifest GetManifest()

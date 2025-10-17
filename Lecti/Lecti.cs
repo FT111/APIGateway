@@ -28,7 +28,7 @@ public class Lecti : IPlugin
     }
 
     public void InitialiseServiceConfiguration(DbContext context,
-        Func<Func<PluginConfigDefinition, Task>, Task> addConfig)
+        Func<Func<PluginConfigDefinition, PluginConfigDefinition>, Task> addConfig)
     {
         addConfig(definition =>
         {
@@ -69,7 +69,7 @@ public class Lecti : IPlugin
                     return false;
                 }
             };
-            return Task.FromResult(definition);
+            return definition;
         });
     }
 

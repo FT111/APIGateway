@@ -68,4 +68,9 @@
       <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti.deps.json" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="services\plugins\Lecti_0.1\" />
+      <Folder Include="services\plugins\Telecti_0.1\" />
+    </ItemGroup>
+
 </Project>

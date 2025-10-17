@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\GatewayPluginContract\GatewayPluginContract.csproj" />
-      <ProjectReference Include="..\Gateway\GatewayPluginContract\GatewayPluginContract.csproj" />
     </ItemGroup>
 
     <ItemGroup>
