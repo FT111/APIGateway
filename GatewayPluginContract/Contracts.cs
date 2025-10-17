@@ -184,6 +184,7 @@ public interface IDataRegistrar
 
 public class PluginConfigDefinition
 {
+    public bool Internal { get; set; }
     public string Key { get; set; }
     public required string PluginNamespace { get; init; }
     public string DefaultValue { get; set; } = "";
@@ -209,7 +210,7 @@ public interface IPlugin
     
     public void ConfigureDataRegistrar(IDataRegistrar registrar);
     
-    public void InitialiseServiceConfiguration(DbContext context, Func<Func<PluginConfigDefinition, Task>, Task> addConfig);
+    public void InitialiseServiceConfiguration(DbContext context, Func<Func<PluginConfigDefinition, PluginConfigDefinition>, Task> addConfig);
 }
 
 public abstract class StoreFactory(IConfiguration configuration) : IService

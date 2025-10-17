@@ -49,6 +49,7 @@ public static class PluginInitialisation
         {
             var manifest = plugin.GetManifest();
             var pluginKey = manifest.Name + "/" + manifest.Version;
+            List<PluginConfig> configDbObjects = [];
             if (InitializedPlugins.Contains(pluginKey))
             {
                 Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
@@ -62,16 +63,30 @@ public static class PluginInitialisation
 
             Console.WriteLine($"Initialising plugin '{pluginKey}'...");
 
-            Task AddConfig(Func<PluginConfigDefinition, Task> conf)
+            Task AddConfig(Func<PluginConfigDefinition, PluginConfigDefinition> conf)
             {
-                conf(new PluginConfigDefinition(
+                var def = conf(new PluginConfigDefinition(
                 )
                 {
-                    PluginNamespace = plugin.GetManifest().Name
+                    PluginNamespace = manifest.Name
                 });
+                PluginConfigDefinitions[manifest.Name][def.Key] = def;
+                var configObj = new PluginConfig
+                {
+                    Key = def.Key,
+                    Namespace = def.PluginNamespace,
+                    Pipe = null,
+                    Value = def.DefaultValue,
+                    Internal = def.Internal
+                };
+                configDbObjects.Add(configObj);
+                
                 return Task.CompletedTask;
             }
             plugin.InitialiseServiceConfiguration(_context, AddConfig);
+            var newDefs =
+                configDbObjects.Where(config => _context.Set<PluginConfig>().Find(config.Key, config.Namespace)==null);
+            _context.Set<PluginConfig>().AddRange(newDefs);
             _context.SaveChanges();
             RegisterPlugin(pluginKey);
             Console.WriteLine($"Plugin '{pluginKey}' initialised.");
