@@ -1,3 +1,4 @@
+using System.Collections;
 using GatewayPluginContract;
 
 namespace Gateway;
@@ -11,20 +12,35 @@ public static class PluginLoader
     private static System.Collections.IEnumerable GetPluginDlls(string subDirectory)
     {
         string fullDir;
+        var devEnv = true;
         ICollection<string> pluginDirs;
+    
+        // Check for DLLs in the given subdirectory - For Prod
+        fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
+        pluginDirs = Directory.GetDirectories(fullDir);
+        foreach (var p in YieldDllsInPluginCollection(pluginDirs)) yield return p;
+
         try
         {
+            // Check for DLLs in the dev environment
+            subDirectory = "../../../" + subDirectory;
             fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
             pluginDirs = Directory.GetDirectories(fullDir);
-            
         }
         catch (Exception e)
         {
-            subDirectory = "../../../../";
-            fullDir = Path.Combine(AppContext.BaseDirectory, subDirectory);
-            pluginDirs = Directory.GetDirectories(fullDir);
+            Console.WriteLine(e);
+            devEnv = false;
         }
-        // var fullDir = "/Users/freddietaylor/Projects/C#Stuff/Gateway/Gateway/services/plugins";
+
+        if (devEnv)
+        {
+            foreach (var p in YieldDllsInPluginCollection(pluginDirs)) yield return p;
+        }
+    }
+
+    private static IEnumerable YieldDllsInPluginCollection(ICollection<string> pluginDirs)
+    {
         foreach (var dir in pluginDirs)
         {
             List<string> potentialDlls = [];
@@ -48,7 +64,7 @@ public static class PluginLoader
         }
     }
 
-    public static List<McMaster.NETCore.Plugins.PluginLoader> GetPluginLoaders(string subDirectory = "services/plugins")
+    public static List<McMaster.NETCore.Plugins.PluginLoader> GetPluginLoaders(string subDirectory = "services\\plugins")
     {
         var pluginLoaders = new List<McMaster.NETCore.Plugins.PluginLoader>();
         foreach (string pluginDll in GetPluginDlls(subDirectory))
