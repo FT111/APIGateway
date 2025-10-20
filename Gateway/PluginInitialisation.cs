@@ -17,7 +17,7 @@ public static class PluginInitialisation
         {
             _context = context;
             _manager = manager;
-            RefreshInitialisedPlugins();
+            // RefreshInitialisedPlugins();
             InitialiseFromPluginManager(manager);
         }
 
@@ -50,16 +50,16 @@ public static class PluginInitialisation
             var manifest = plugin.GetManifest();
             var pluginKey = manifest.Name + "/" + manifest.Version;
             List<PluginConfig> configDbObjects = [];
-            if (InitializedPlugins.Contains(pluginKey))
-            {
-                Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
-                return;
-            }
-            RefreshInitialisedPlugins();
-            if (InitializedPlugins.Contains(pluginKey))
-            {
-                return; 
-            }
+            // if (InitializedPlugins.Contains(pluginKey))
+            // {
+            //     Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
+            //     return;
+            // }
+            // RefreshInitialisedPlugins();
+            // if (InitializedPlugins.Contains(pluginKey))
+            // {
+            //     return; 
+            // }
 
             Console.WriteLine($"Initialising plugin '{pluginKey}'...");
 
@@ -70,6 +70,10 @@ public static class PluginInitialisation
                 {
                     PluginNamespace = manifest.Name
                 });
+                if (!PluginConfigDefinitions.TryGetValue(manifest.Name, out var val)) 
+                {
+                    PluginConfigDefinitions[manifest.Name] = new Dictionary<string, PluginConfigDefinition>();
+                }
                 PluginConfigDefinitions[manifest.Name][def.Key] = def;
                 var configObj = new PluginConfig
                 {
@@ -77,6 +81,7 @@ public static class PluginInitialisation
                     Namespace = def.PluginNamespace,
                     Pipe = null,
                     Value = def.DefaultValue,
+                    Type = def.ValueType,
                     Internal = def.Internal
                 };
                 configDbObjects.Add(configObj);
@@ -85,10 +90,11 @@ public static class PluginInitialisation
             }
             plugin.InitialiseServiceConfiguration(_context, AddConfig);
             var newDefs =
-                configDbObjects.Where(config => _context.Set<PluginConfig>().Find(config.Key, config.Namespace)==null);
+                configDbObjects.Where(config =>
+                    !_context.Set<PluginConfig>().Any(exConf => exConf.Key == config.Key && exConf.Namespace==config.Namespace && exConf.PipeId == null));
             _context.Set<PluginConfig>().AddRange(newDefs);
             _context.SaveChanges();
-            RegisterPlugin(pluginKey);
+            // RegisterPlugin(pluginKey);
             Console.WriteLine($"Plugin '{pluginKey}' initialised.");
         }
     }

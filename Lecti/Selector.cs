@@ -14,7 +14,7 @@ public class Selector : IRequestProcessor
                 $"Checking existing Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}, {stk.Identity.OriginManifest.Name}");
             var target = context.Target;
             var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == target.Id.ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
-            var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(existingRecord.Value);
+            var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(existingRecord.Value));
             context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
         }
         catch (Exception)
@@ -30,7 +30,7 @@ public class Selector : IRequestProcessor
                     context.PluginConfiguration[stk.Identity.OriginManifest.Name]["downstream_variants"]) ?? throw new InvalidOperationException("No downstream variations configured.");
             var variation = random.Next(0, availableVariations.Count);
             
-            var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(availableVariations[variation]);
+            var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(availableVariations[variation]));
             context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
 
             // Store the assigned variation in the scoped store

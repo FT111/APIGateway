@@ -182,6 +182,7 @@ public partial class EfDbContext : DbContext
                 .HasColumnName("internal");
             entity.Property(e => e.PipeId).HasColumnName("pipe_id");
             entity.Property(e => e.Value).HasColumnName("value");
+            entity.Property(e => e.Type).HasColumnName("type");
 
             entity.HasOne(d => d.Pipe).WithMany(p => p.PluginConfigs)
                 .HasForeignKey(d => d.PipeId)

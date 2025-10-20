@@ -32,8 +32,12 @@ public class Lecti : IPlugin
     {
         addConfig(definition =>
         {
-            definition.Key = "targets";
+            definition.Key = "downstream_variants";
             definition.DefaultValue = "[]";
+            definition.ValueType = "json";
+            definition.Internal = false;
+            definition.ConstraintDescription = "Must be a target ID";
+            
             definition.ValueConstraint = s =>
             {
                 try
