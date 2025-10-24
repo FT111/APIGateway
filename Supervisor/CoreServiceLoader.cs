@@ -1,4 +1,5 @@
 using GatewayPluginContract;
+using Microsoft.EntityFrameworkCore;
 using Supervisor.auth;
 using Supervisor.routes;
 using Supervisor.services;
@@ -38,8 +39,9 @@ public static class CoreServiceLoader
             ?? throw new InvalidOperationException("PluginPackageManager service not found.");
         packageManager.PackagePluginsAsync();
         builder.Services.AddSingleton(packageManager);
-        
-        
+
+
+        builder.Services.AddTransient<DbContext>(services => gatewayStoreProvider.CreateStore().GetRepoFactory().Context);
         builder.Services.AddSingleton<InternalTypes.Repositories.Gateway>(new InternalTypes.Repositories.Gateway(
             gatewayStoreProvider.CreateStore().GetRepoFactory()));
         builder.Services.AddSingleton<InternalTypes.Repositories.Supervisor>(new InternalTypes.Repositories.Supervisor(
@@ -50,5 +52,7 @@ public static class CoreServiceLoader
             ?? throw new InvalidOperationException("SupervisorClient service not found."));
         builder.Services.AddSingleton<Instances.InstanceManager>();
         builder.Services.AddSingleton<PackageManager>();
+        builder.Services.AddSingleton<PluginInitialisation.PluginConfigManager>(services =>
+            new PluginInitialisation.PluginConfigManager(services.GetService<DbContext>(), pluginManager));
     }
 }
