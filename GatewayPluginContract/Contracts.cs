@@ -1,5 +1,6 @@
 ﻿using System.IO.Pipelines;
 using System.Linq.Expressions;
+using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -170,6 +171,15 @@ public enum ServiceFailurePolicies
     Block
 }
 
+public interface IPresetConfigValuePrompts
+{ 
+    ICollection<string> Targets(DbContext context);
+    ICollection<string> Endpoints(DbContext context);
+    ICollection<string> Deployments(DbContext context);
+    ICollection<string> Schemas(DbContext context);
+    ICollection<string> Pipes(DbContext context);
+}
+
 public interface IPluginServiceRegistrar
 {
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
@@ -189,6 +199,8 @@ public class PluginConfigDefinition
     public required string PluginNamespace { get; init; }
     public string DefaultValue { get; set; } = "";
     public string ValueType { get; set; } = "string";
+    public string ConstraintDescription { get; set; } = "";
+    public Func<DbContext,  List<string>>? ValuePrompts;
     public Predicate<string>? ValueConstraint { get; set; }
     
 }
