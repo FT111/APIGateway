@@ -29,7 +29,6 @@
 
     <ItemGroup>
       <Folder Include="routes\Static\" />
-      <Folder Include="services\plugins\Lecti_0.1\bin\Debug\net9.0\" />
     </ItemGroup>
 
     <ItemGroup>

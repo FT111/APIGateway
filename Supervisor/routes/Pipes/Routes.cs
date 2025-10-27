@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Supervisor.routes.Pipes;
 
-public class Routes
+public class  Routes
 {
     public Routes(WebApplication app)
     {
@@ -57,22 +57,71 @@ public class Routes
             return Results.NoContent();
         });
         
-        route.MapPut("/{id:guid:required}/{serviceIdentifier:required}/configuration", async (Guid id, string serviceIdentifier, Dictionary<string, string> configuration, InternalTypes.Repositories.Gateway data) =>
+        route.MapPut("/{id}/{serviceIdentifier:required}/configuration", async (string? id, string serviceIdentifier, Dictionary<string, string> configuration, InternalTypes.Repositories.Gateway data, PluginInitialisation.PluginConfigManager configDefManager) =>
         {
-            Dictionary<string, PluginConfig> configs = data.Context.Set<PluginConfig>().Where(pc => pc.Namespace == serviceIdentifier).ToDictionary(pc => pc.Key, pc => pc);
+            Dictionary<string, PluginConfig> configs = data.Context.Set<PluginConfig>().Where(pc => pc.Namespace == serviceIdentifier && pc.PipeId == null).ToDictionary(pc => pc.Key, pc => pc);
+            var changes = 0;
+            if (id == "global")
+            {
+                id = null;
+            }
+
+            string pluginName;
+            if (serviceIdentifier.Split('_').Length > 1)
+            {
+                pluginName = serviceIdentifier.Split('_')[0];
+            }
+            else
+            {
+                pluginName = serviceIdentifier;
+            }
             
             foreach (var keyValuePair in configuration)
             {
                 // Only allow updating existing configs
                 // Only plugins can create new configs key/values
                 if (!configs.ContainsKey(keyValuePair.Key)) continue;
+                if (!configDefManager.PluginConfigDefinitions.ContainsKey(serviceIdentifier))
+                {
+                    continue;
+                }
+                var def = configDefManager.PluginConfigDefinitions[serviceIdentifier][keyValuePair.Key];
+                if (def.ValueConstraint!= null)
+                {
+                    if (!def.ValueConstraint(keyValuePair.Value))
+                    {
+                        // Placeholder - Adding a error system in TODO
+                        return Results.BadRequest("Invalid configuration ");
+                    }
+                }
                 configs[keyValuePair.Key].Value = keyValuePair.Value;
-                data.Context.Set<PluginConfig>().Update(configs[keyValuePair.Key]);
+                var pluginConfig = FetchPluginConfig(data, keyValuePair, pluginName, id);
+                pluginConfig.Value = keyValuePair.Value;
+                changes++;
             }
-            await data.Context.SaveChangesAsync();
+
+            if (changes > 0)
+            {
+                await data.Context.SaveChangesAsync();
+            }
             
             return Results.NoContent();
         });
         
+    }
+
+    private static PluginConfig FetchPluginConfig(InternalTypes.Repositories.Gateway data, KeyValuePair<string, string> keyValuePair, string pluginName, string? id)
+    {
+        PluginConfig pluginConfig;
+        if (id == null)
+        {
+             pluginConfig = data.Context.Set<PluginConfig>().FirstOrDefault(config => config.Key == keyValuePair.Key && config.Namespace == pluginName &&  config.PipeId == null);
+        }
+        else
+        {
+             pluginConfig = data.Context.Set<PluginConfig>().FirstOrDefault(config => config.Key == keyValuePair.Key && config.Namespace == pluginName &&  config.PipeId == Guid.Parse(id));
+        }
+
+        return pluginConfig ?? throw new Exception("PluginConfig not found");
     }
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GatewayPluginContract.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -51,6 +52,8 @@ public static class Program
 
         var app = builder.Build();
         var instanceManager = app.Services.GetRequiredService<Instances.InstanceManager>();
+        var pluginConfManager = app.Services.GetRequiredService<PluginInitialisation.PluginConfigManager>();
+
         await instanceManager.StartAsync();
         app.MapOpenApi();
 
