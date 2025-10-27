@@ -22,11 +22,11 @@ public class  Routes
             return Results.Ok(paginatedPipes);
         });
         
-        route.MapGet("/{id:guid}", async (Guid id, InternalTypes.Repositories.Gateway data, Utils.ResponseStructure<Models.PipeResponse> res) =>
+        route.MapGet("/{id:guid}", async (Guid id, InternalTypes.Repositories.Gateway data, Utils.ResponseStructure<Models.IndividualPipeResponse> res) =>
         {
-            var pipe = await data.GetRepo<Pipe>().GetAsync(id);
+            var pipe = await data.Context.Set<Pipe>().Include(p => p.Endpoints).Include(p => p.PipeServices).FirstOrDefaultAsync(p => p.Id == id);
             if (pipe == null) return Results.NotFound();
-            var mappedResponse =  Mapping.ToResponse.Compile()(pipe);
+            var mappedResponse =  Mapping.ToIndividualResponse.Compile()(pipe);
             return Results.Ok(res.WithData(mappedResponse));
         });
         
