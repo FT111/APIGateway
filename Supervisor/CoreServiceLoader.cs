@@ -31,7 +31,7 @@ public static class CoreServiceLoader
                                             ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
         }
 
-        var gatewayStoreProvider = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["InstanceStore"]).Instance
+        var storeProvider = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["InstanceStore"]).Instance
             ?? throw new InvalidOperationException("StoreFactory service not found.");
         var supervisorStoreProvider = pluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["SupervisorStore"]).Instance
             ?? throw new InvalidOperationException("SupervisorStore service not found.");
@@ -41,11 +41,17 @@ public static class CoreServiceLoader
         builder.Services.AddSingleton(packageManager);
 
 
-        builder.Services.AddTransient<DbContext>(services => gatewayStoreProvider.CreateStore().GetRepoFactory().Context);
-        builder.Services.AddSingleton<InternalTypes.Repositories.Gateway>(new InternalTypes.Repositories.Gateway(
-            gatewayStoreProvider.CreateStore().GetRepoFactory()));
-        builder.Services.AddSingleton<InternalTypes.Repositories.Supervisor>(new InternalTypes.Repositories.Supervisor(
-            supervisorStoreProvider.CreateStore().GetRepoFactory()));
+        builder.Services.AddTransient<DbContext>(services => storeProvider.CreateStore().GetRepoFactory().Context);
+        builder.Services.AddTransient<InternalTypes.Repositories.Gateway>(services =>
+        {
+            return new InternalTypes.Repositories.Gateway(
+                storeProvider.CreateStore().GetRepoFactory());
+        });
+        builder.Services.AddTransient<InternalTypes.Repositories.Supervisor>(services =>
+        {
+            return new InternalTypes.Repositories.Supervisor(
+                storeProvider.CreateStore().GetRepoFactory());
+        });
         builder.Services.AddSingleton<AuthHandler>(new AuthHandler(builder.Configuration));
         
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance

@@ -60,7 +60,15 @@ public class  Routes
         route.MapPut("/{id}/{serviceIdentifier:required}/configuration", async (string? id, string serviceIdentifier, Dictionary<string, string> configuration, InternalTypes.Repositories.Gateway data, PluginInitialisation.PluginConfigManager configDefManager) =>
         {
             Dictionary<string, PluginConfig> configs = data.Context.Set<PluginConfig>().Where(pc => pc.Namespace == serviceIdentifier && pc.PipeId == null).ToDictionary(pc => pc.Key, pc => pc);
+            var pipe = await data.Context.Set<Pipe>().Include(pipe => pipe.PluginConfigs).FirstOrDefaultAsync(p => p.Id == Guid.Parse(id));
+            if (pipe == null)
+            {
+                return Results.NotFound();   
+            }
+
+            var pipeEntry = data.Context.Entry(pipe);
             var changes = 0;
+            
             if (id == "global")
             {
                 id = null;
@@ -95,7 +103,15 @@ public class  Routes
                     }
                 }
                 configs[keyValuePair.Key].Value = keyValuePair.Value;
-                var pluginConfig = FetchPluginConfig(data, keyValuePair, pluginName, id);
+                PluginConfig pluginConfig;
+                try
+                {
+                    pluginConfig = FetchPluginConfig(pipe, keyValuePair, pluginName);
+                }
+                catch (InvalidOperationException)
+                {
+                    return Results.NotFound();
+                }
                 pluginConfig.Value = keyValuePair.Value;
                 changes++;
             }
@@ -110,18 +126,9 @@ public class  Routes
         
     }
 
-    private static PluginConfig FetchPluginConfig(InternalTypes.Repositories.Gateway data, KeyValuePair<string, string> keyValuePair, string pluginName, string? id)
+    private static PluginConfig FetchPluginConfig(Pipe pipe, KeyValuePair<string, string> keyValuePair, string pluginName)
     {
-        PluginConfig pluginConfig;
-        if (id == null)
-        {
-             pluginConfig = data.Context.Set<PluginConfig>().FirstOrDefault(config => config.Key == keyValuePair.Key && config.Namespace == pluginName &&  config.PipeId == null);
-        }
-        else
-        {
-             pluginConfig = data.Context.Set<PluginConfig>().FirstOrDefault(config => config.Key == keyValuePair.Key && config.Namespace == pluginName &&  config.PipeId == Guid.Parse(id));
-        }
+        return pipe.PluginConfigs.FirstOrDefault(pc => pc.Key == keyValuePair.Key && pc.Namespace == pluginName) ?? throw new InvalidOperationException("Plugin config not found");
 
-        return pluginConfig ?? throw new Exception("PluginConfig not found");
     }
 }
