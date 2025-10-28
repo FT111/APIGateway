@@ -37,7 +37,7 @@ public static class Models
 
         public long Order { get; set; }
         
-        public ServiceFailurePolicies FailurePolicy { get; set; }
+        public required string FailurePolicy { get; set; }
 
     }
     
@@ -88,7 +88,7 @@ public static class Mapping
                 PluginTitle = service.PluginTitle,
                 PluginVersion = service.PluginVersion,
                 Order = service.Order,
-                FailurePolicy = service.FailurePolicy
+                FailurePolicy = service.FailurePolicy.ToString()
             }),
             Endpoints = pipe.Endpoints.Select(endpoint => new Models.PipeEndpointResponse
             {
