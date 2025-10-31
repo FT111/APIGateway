@@ -79,7 +79,7 @@ public static class PluginInitialisation
                 {
                     Key = def.Key,
                     Namespace = def.PluginNamespace,
-                    Pipe = null,
+                    PipeId = null,
                     Value = def.DefaultValue,
                     Type = def.ValueType,
                     Internal = def.Internal

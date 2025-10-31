@@ -180,13 +180,11 @@ public partial class EfDbContext : DbContext
             entity.Property(e => e.Internal)
                 .HasDefaultValue(false)
                 .HasColumnName("internal");
-            entity.Property(e => e.PipeId).HasColumnName("pipe_id");
+            entity.Property(e => e.PipeId).HasColumnName("pipe_id").IsRequired(false);
             entity.Property(e => e.Value).HasColumnName("value");
 
-            entity.HasOne(d => d.Pipe).WithMany(p => p.PluginConfigs)
-                .HasForeignKey(d => d.PipeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("plugin_configs_pipes_id_fk");
+            // entity.HasOne(d => d.Pipe).WithMany(p => p.PluginConfigs)
+            //     .HasForeignKey(d => d.PipeId);
         });
         
         modelBuilder.Entity<DeploymentStatus>(entity =>

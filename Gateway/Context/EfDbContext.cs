@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using GatewayPluginContract.Entities;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
-namespace Gateway.Context;
+namespace Supervisor.Context;
 
 public partial class EfDbContext : DbContext
 {
@@ -77,18 +77,6 @@ public partial class EfDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("endpoints_targets_id_fk");
         });
-        
-        modelBuilder.Entity<Plugin>(entity =>
-        {
-            entity.HasKey(e => new { e.Title, e.Version }).HasName("plugins_pk");
-
-            entity.ToTable("plugins");
-
-            entity.Property(e => e.Title)
-                .HasColumnName("title");
-            entity.Property(e => e.Version)
-                .HasColumnName("version");
-        });
 
         modelBuilder.Entity<Event>(entity =>
         {
@@ -119,6 +107,18 @@ public partial class EfDbContext : DbContext
             entity.HasOne(d => d.Endpoint).WithMany(p => p.Events)
                 .HasForeignKey(d => d.Endpointid)
                 .HasConstraintName("events_endpoints_id_fk");
+        });
+        
+        modelBuilder.Entity<Plugin>(entity =>
+        {
+            entity.HasKey(e => new { e.Title, e.Version }).HasName("plugins_pk");
+
+            entity.ToTable("plugins");
+
+            entity.Property(e => e.Title)
+                .HasColumnName("title");
+            entity.Property(e => e.Version)
+                .HasColumnName("version");
         });
 
         modelBuilder.Entity<Pipe>(entity =>
@@ -169,7 +169,7 @@ public partial class EfDbContext : DbContext
 
         modelBuilder.Entity<PluginConfig>(entity =>
         {
-            entity.HasKey(e => new { e.Key, e.Namespace }).HasName("plugin_configs_pk");
+            entity.HasKey(e => new { e.Key, e.Namespace, e.PipeId }).HasName("plugin_configs_pk");
 
             entity.ToTable("plugin_configs");
 
@@ -182,12 +182,9 @@ public partial class EfDbContext : DbContext
                 .HasColumnName("internal");
             entity.Property(e => e.PipeId).HasColumnName("pipe_id");
             entity.Property(e => e.Value).HasColumnName("value");
-            entity.Property(e => e.Type).HasColumnName("type");
 
             entity.HasOne(d => d.Pipe).WithMany(p => p.PluginConfigs)
-                .HasForeignKey(d => d.PipeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("plugin_configs_pipes_id_fk");
+                .HasForeignKey(d => d.PipeId).IsRequired();
         });
         
         modelBuilder.Entity<DeploymentStatus>(entity =>

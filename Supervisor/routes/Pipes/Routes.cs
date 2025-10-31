@@ -108,7 +108,7 @@ public class  Routes
                 {
                     pluginConfig = FetchPluginConfig(pipe, keyValuePair, pluginName);
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException e)
                 {
                     return Results.NotFound();
                 }
