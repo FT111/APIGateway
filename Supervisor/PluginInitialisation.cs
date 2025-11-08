@@ -41,25 +41,22 @@ public static class PluginInitialisation
         {
             foreach (var plugin in manager.Plugins)
             {
-                InitialisePluginIfUninitialised(plugin);
+                InitialisePlugin(plugin);
             }
         }
         
-        public void InitialisePluginIfUninitialised(IPlugin plugin)
+        public void InitialisePlugin(IPlugin plugin)
         {
             var manifest = plugin.GetManifest();
             var pluginKey = manifest.Name + "/" + manifest.Version;
             List<PluginConfig> configDbObjects = [];
-            // if (InitializedPlugins.Contains(pluginKey))
-            // {
-            //     Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
-            //     return;
-            // }
-            // RefreshInitialisedPlugins();
-            // if (InitializedPlugins.Contains(pluginKey))
-            // {
-            //     return; 
-            // }
+            
+            var isPluginInitialisedInDb = InitializedPlugins.Contains(pluginKey);
+            RefreshInitialisedPlugins();
+            if (InitializedPlugins.Contains(pluginKey))
+            {
+                isPluginInitialisedInDb = true; 
+            }
 
             Console.WriteLine($"Initialising plugin '{pluginKey}'...");
 
@@ -79,22 +76,29 @@ public static class PluginInitialisation
                 {
                     Key = def.Key,
                     Namespace = def.PluginNamespace,
-                    Pipe = null,
+                    PipeId = null,
                     Value = def.DefaultValue,
                     Type = def.ValueType,
                     Internal = def.Internal
                 };
-                configDbObjects.Add(configObj);
+
+                if (!isPluginInitialisedInDb)
+                {
+                    configDbObjects.Add(configObj);
+                }
                 
                 return Task.CompletedTask;
             }
             plugin.InitialiseServiceConfiguration(_context, AddConfig);
-            var newDefs =
-                configDbObjects.Where(config =>
-                    !_context.Set<PluginConfig>().Any(exConf => exConf.Key == config.Key && exConf.Namespace==config.Namespace && exConf.PipeId == null));
-            _context.Set<PluginConfig>().AddRange(newDefs);
-            _context.SaveChanges();
-            // RegisterPlugin(pluginKey);
+            if (!isPluginInitialisedInDb)
+            {
+                var newDefs =
+                    configDbObjects.Where(config =>
+                        !_context.Set<PluginConfig>().Any(exConf => exConf.Key == config.Key && exConf.Namespace==config.Namespace && exConf.PipeId == null));
+                _context.Set<PluginConfig>().AddRange(newDefs);
+                _context.SaveChanges();
+                RegisterPlugin(pluginKey);
+            }
             Console.WriteLine($"Plugin '{pluginKey}' initialised.");
         }
     }

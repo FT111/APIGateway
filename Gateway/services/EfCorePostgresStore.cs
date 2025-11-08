@@ -13,51 +13,51 @@ namespace Gateway.services;
 public class EfCorePostgresStore : GatewayPluginContract.Store
 {
 
-    // private class PostgresDbContext(DbContextOptions<PostgresDbContext> options) : DbContext(options)
-    // {
-    //     public DbSet<PluginData> PluginData { get; set; } = null!;
-    //     public DbSet<Endpoint> Endpoints { get; set; } = null!;
-    //     public DbSet<PipeService> PipeServices { get; set; } = null!;
-    //     public DbSet<PluginConfig> PluginConfigs { get; set; } = null!;
-    //     public DbSet<Pipe> Pipes { get; set; } = null!;
-    //     public DbSet<Target> Targets { get; set; } = null!;
-    //     
-    //     protected override void OnModelCreating(ModelBuilder modelBuilder)
-    //     {
-    //         base.OnModelCreating(modelBuilder);
-    //         modelBuilder.Entity<PluginData>().ToTable("plugindata");
-    //         modelBuilder.Entity<Endpoint>()
-    //             .ToTable("endpoints");
-    //         modelBuilder.Entity<Endpoint>()
-    //             .HasOne(ep => ep.Target)
-    //             .WithMany(t => t.Endpoints)
-    //             .HasForeignKey("target_id");
-    //         modelBuilder.Entity<Endpoint>()
-    //             .HasOne(e => e.Pipe)
-    //             .WithMany(p => p.Endpoints)
-    //             .HasForeignKey("pipe_id")
-    //             .OnDelete(DeleteBehavior.Cascade);
-    //         // modelBuilder.Entity<PipeService>().ToTable("pipeservices").HasOne<Pipe>().WithMany(p => p.Services).HasForeignKey("pipe_id").OnDelete(DeleteBehavior.Cascade);
-    //         modelBuilder.Entity<PluginConfig>().ToTable("PluginConfigs")
-    //             .HasOne<Pipe>().WithMany(p => p.Configs)
-    //             .HasForeignKey("pipe_id")  // Add this line to specify the foreign key column name
-    //             .OnDelete(DeleteBehavior.Cascade);
-    //         modelBuilder.Entity<Target>().ToTable("targets");
-    //         modelBuilder.Entity<Pipe>().ToTable("pipes");
-    //         
-    //         modelBuilder.Entity<PipeService>()
-    //             .HasKey(p => new { p.PluginTitle, p.ServiceTitle, p.PipeId, p.Order });
-    //         
-    //         modelBuilder.Entity<PluginData>()
-    //             .HasKey(p => new { p.Key, p.Namespace });
-    //         
-    //         modelBuilder.Entity<PluginConfig>()
-    //             .HasKey(p => new { p.Key, p.Namespace });
-    //
-    //         modelBuilder.HasPostgresEnum<ServiceFailurePolicies>();
-    //     }
-    // }
-
+//     // private class PostgresDbContext(DbContextOptions<PostgresDbContext> options) : DbContext(options)
+//     // {
+//     //     public DbSet<PluginData> PluginData { get; set; } = null!;
+//     //     public DbSet<Endpoint> Endpoints { get; set; } = null!;
+//     //     public DbSet<PipeService> PipeServices { get; set; } = null!;
+//     //     public DbSet<PluginConfig> PluginConfigs { get; set; } = null!;
+//     //     public DbSet<Pipe> Pipes { get; set; } = null!;
+//     //     public DbSet<Target> Targets { get; set; } = null!;
+//     //     
+//     //     protected override void OnModelCreating(ModelBuilder modelBuilder)
+//     //     {
+//     //         base.OnModelCreating(modelBuilder);
+//     //         modelBuilder.Entity<PluginData>().ToTable("plugindata");
+//     //         modelBuilder.Entity<Endpoint>()
+//     //             .ToTable("endpoints");
+//     //         modelBuilder.Entity<Endpoint>()
+//     //             .HasOne(ep => ep.Target)
+//     //             .WithMany(t => t.Endpoints)
+//     //             .HasForeignKey("target_id");
+//     //         modelBuilder.Entity<Endpoint>()
+//     //             .HasOne(e => e.Pipe)
+//     //             .WithMany(p => p.Endpoints)
+//     //             .HasForeignKey("pipe_id")
+//     //             .OnDelete(DeleteBehavior.Cascade);
+//     //         // modelBuilder.Entity<PipeService>().ToTable("pipeservices").HasOne<Pipe>().WithMany(p => p.Services).HasForeignKey("pipe_id").OnDelete(DeleteBehavior.Cascade);
+//     //         modelBuilder.Entity<PluginConfig>().ToTable("PluginConfigs")
+//     //             .HasOne<Pipe>().WithMany(p => p.Configs)
+//     //             .HasForeignKey("pipe_id")  // Add this line to specify the foreign key column name
+//     //             .OnDelete(DeleteBehavior.Cascade);
+//     //         modelBuilder.Entity<Target>().ToTable("targets");
+//     //         modelBuilder.Entity<Pipe>().ToTable("pipes");
+//     //         
+//     //         modelBuilder.Entity<PipeService>()
+//     //             .HasKey(p => new { p.PluginTitle, p.ServiceTitle, p.PipeId, p.Order });
+//     //         
+//     //         modelBuilder.Entity<PluginData>()
+//     //             .HasKey(p => new { p.Key, p.Namespace });
+//     //         
+//     //         modelBuilder.Entity<PluginConfig>()
+//     //             .HasKey(p => new { p.Key, p.Namespace });
+//     //
+//     //         modelBuilder.HasPostgresEnum<ServiceFailurePolicies>();
+//     //     }
+//     // }
+//
     public override required DbContext Context { get; init; }
 
 

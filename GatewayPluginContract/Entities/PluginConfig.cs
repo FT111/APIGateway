@@ -2,13 +2,14 @@
 
 public partial class PluginConfig : Entity
 {
+    public Guid Id { get; init; }
     public string Key { get; set; } = null!;
 
     public string? Value { get; set; }
 
     public string Namespace { get; set; } = null!;
 
-    public Guid? PipeId { get; set; }
+    public required Guid? PipeId { get; set; } = null;
     
     public string Type { get; set; }
 

@@ -65,8 +65,9 @@ public class Lecti : IPlugin
                         }
                     }
 
-                    var matchingTargets = context.Set<Target>().Where(target => parsedTargets.Contains(target.Id));
-                    return matchingTargets.ToArray().Length == parsedTargets.Count;
+                    var matchingTargets = context.Set<Target>().Where(target => parsedTargets.Contains(target.Id)).ToArray().Length;
+                    Console.WriteLine("matching targets:::: " + matchingTargets);
+                    return matchingTargets == parsedTargets.Count;
                 }
                 catch (Exception e)
                 {

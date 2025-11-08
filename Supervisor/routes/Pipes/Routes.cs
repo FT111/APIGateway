@@ -59,20 +59,22 @@ public class  Routes
         
         route.MapPut("/{id}/{serviceIdentifier:required}/configuration", async (string? id, string serviceIdentifier, Dictionary<string, string> configuration, InternalTypes.Repositories.Gateway data, PluginInitialisation.PluginConfigManager configDefManager) =>
         {
-            Dictionary<string, PluginConfig> configs = data.Context.Set<PluginConfig>().Where(pc => pc.Namespace == serviceIdentifier && pc.PipeId == null).ToDictionary(pc => pc.Key, pc => pc);
-            var pipe = await data.Context.Set<Pipe>().Include(pipe => pipe.PluginConfigs).FirstOrDefaultAsync(p => p.Id == Guid.Parse(id));
-            if (pipe == null)
-            {
-                return Results.NotFound();   
-            }
-
-            var pipeEntry = data.Context.Entry(pipe);
-            var changes = 0;
-            
+            Pipe? pipe = null;
             if (id == "global")
             {
                 id = null;
             }
+            else
+            {
+                pipe = await data.Context.Set<Pipe>().Include(pipe => pipe.PluginConfigs).FirstOrDefaultAsync(p => p.Id == Guid.Parse(id));
+                if (pipe == null)
+                {
+                    return Results.NotFound();   
+                }
+            }
+            
+            var changes = 0;
+            
 
             string pluginName;
             if (serviceIdentifier.Split('_').Length > 1)
@@ -88,10 +90,9 @@ public class  Routes
             {
                 // Only allow updating existing configs
                 // Only plugins can create new configs key/values
-                if (!configs.ContainsKey(keyValuePair.Key)) continue;
                 if (!configDefManager.PluginConfigDefinitions.ContainsKey(serviceIdentifier))
                 {
-                    continue;
+                    return Results.BadRequest("Invalid property: " + keyValuePair.Key);
                 }
                 var def = configDefManager.PluginConfigDefinitions[serviceIdentifier][keyValuePair.Key];
                 if (def.ValueConstraint!= null)
@@ -102,13 +103,12 @@ public class  Routes
                         return Results.BadRequest("Invalid configuration ");
                     }
                 }
-                configs[keyValuePair.Key].Value = keyValuePair.Value;
                 PluginConfig pluginConfig;
                 try
                 {
-                    pluginConfig = FetchPluginConfig(pipe, keyValuePair, pluginName);
+                    pluginConfig = FetchPluginConfig(pipe, keyValuePair, pluginName, data.Context);
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException e)
                 {
                     return Results.NotFound();
                 }
@@ -126,8 +126,12 @@ public class  Routes
         
     }
 
-    private static PluginConfig FetchPluginConfig(Pipe pipe, KeyValuePair<string, string> keyValuePair, string pluginName)
+    private static PluginConfig FetchPluginConfig(Pipe? pipe, KeyValuePair<string, string> keyValuePair, string pluginName, DbContext ctx)
     {
+        if (pipe == null)
+        {
+            return ctx.Set<PluginConfig>().FirstOrDefault(p => p.Key == keyValuePair.Key && p.Namespace == pluginName && p.PipeId == null) ?? throw new InvalidOperationException();
+        }
         return pipe.PluginConfigs.FirstOrDefault(pc => pc.Key == keyValuePair.Key && pc.Namespace == pluginName) ?? throw new InvalidOperationException("Plugin config not found");
 
     }
