@@ -2,6 +2,7 @@
 
 public partial class PluginConfig : Entity
 {
+    public Guid Id { get; init; }
     public string Key { get; set; } = null!;
 
     public string? Value { get; set; }
@@ -14,5 +15,5 @@ public partial class PluginConfig : Entity
 
     public bool Internal { get; set; }
 
-    // public virtual Pipe? Pipe { get; set; } = null!;
+    public virtual Pipe? Pipe { get; set; } = null!;
 }

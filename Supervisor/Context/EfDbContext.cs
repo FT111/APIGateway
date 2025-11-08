@@ -141,6 +141,8 @@ public partial class EfDbContext : DbContext
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
+
+            entity.HasMany(e => e.PluginConfigs).WithOne(pc => pc.Pipe);
         });
 
         modelBuilder.Entity<PipeService>(entity =>
@@ -169,10 +171,12 @@ public partial class EfDbContext : DbContext
 
         modelBuilder.Entity<PluginConfig>(entity =>
         {
-            entity.HasKey(e => new { e.Key, e.Namespace }).HasName("plugin_configs_pk");
+            entity.HasKey(e => new { e.Id }).HasName("plugin_configs_pk");
 
             entity.ToTable("plugin_configs");
 
+            entity.Property(e => e.Id)
+                .IsRequired();
             entity.Property(e => e.Key)
                 .HasMaxLength(50)
                 .HasColumnName("key");
@@ -180,11 +184,8 @@ public partial class EfDbContext : DbContext
             entity.Property(e => e.Internal)
                 .HasDefaultValue(false)
                 .HasColumnName("internal");
-            entity.Property(e => e.PipeId).HasColumnName("pipe_id").IsRequired(false);
+            entity.Property(e => e.PipeId).HasColumnName("pipe_id");
             entity.Property(e => e.Value).HasColumnName("value");
-
-            // entity.HasOne(d => d.Pipe).WithMany(p => p.PluginConfigs)
-            //     .HasForeignKey(d => d.PipeId);
         });
         
         modelBuilder.Entity<DeploymentStatus>(entity =>
