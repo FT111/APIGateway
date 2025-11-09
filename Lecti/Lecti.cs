@@ -84,9 +84,9 @@ public class Lecti : IPlugin
         registrar.RegisterService<Checker>(this, new Checker(), ServiceTypes.PostProcessor);
     }
 
-    public void ConfigureDataRegistrar(IDataRegistrar registrar)
+    public void ConfigureDataRegistries(ITelemetryRegistrar tel, IPluginCacheManager cache)
     {
-        registrar.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
+        tel.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
         {
             Name = "Lecti A/B Test Results",
             Description = "Shows the current distribution of A/B test targets.",

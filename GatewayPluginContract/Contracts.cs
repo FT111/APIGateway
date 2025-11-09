@@ -186,7 +186,7 @@ public interface IPluginServiceRegistrar
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
 }
 
-public interface IDataRegistrar
+public interface ITelemetryRegistrar
 {
     void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
     
@@ -216,18 +216,24 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
 public interface IPluginCacheManager
 {
     public IPluginCache GetCache(string pluginIdentifier);
+    public IPluginCache NewCache(string pluginIdentifier);
 }
 
 public interface IPluginCache
 {
     public T? Get<T>(string key);
+    public void Register<T>(string key, CachedData<T> data) where T : class;
 }
 
 public abstract class CachedData<T> where T : class
 {
-    public required T Data { get; set; }
+    private T _data;
+
+    public required T Data { get => Volatile.Read(ref _data);
+        set => Interlocked.Exchange(ref _data, value);
+    }
     public abstract void UpdateData(DbContext data);
-    public DateInterval InvalidationFrequency { get; init; }
+    public TimeSpan InvalidationFrequency { get; init; }
 }
 
 public interface IPlugin
@@ -238,7 +244,7 @@ public interface IPlugin
 
     public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar);
     
-    public void ConfigureDataRegistrar(IDataRegistrar registrar);
+    public void ConfigureDataRegistries(ITelemetryRegistrar tel, IPluginCacheManager cache);
     
     public void InitialiseServiceConfiguration(DbContext context, Func<Func<PluginConfigDefinition, PluginConfigDefinition>, Task> addConfig);
 }
