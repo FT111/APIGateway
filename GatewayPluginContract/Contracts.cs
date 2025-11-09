@@ -4,6 +4,7 @@ using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic;
 
 namespace GatewayPluginContract;
 using DeferredFunc = Func<CancellationToken, Repositories, Task>;
@@ -210,6 +211,23 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
     public required string Name { get; init; }
     public string? Description { get; init; }
     public required Func<Repositories, TModel> GetData { get; init; }
+}
+
+public interface IPluginCacheManager
+{
+    public IPluginCache GetCache(string pluginIdentifier);
+}
+
+public interface IPluginCache
+{
+    public T? Get<T>(string key);
+}
+
+public abstract class CachedData<T> where T : class
+{
+    public required T Data { get; set; }
+    public abstract void UpdateData(DbContext data);
+    public DateInterval InvalidationFrequency { get; init; }
 }
 
 public interface IPlugin
