@@ -38,6 +38,7 @@
       <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\obj\project.packagespec.json" />
       <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\obj\Telecti.csproj.nuget.dgspec.json" />
       <_ContentIncludedByDefault Remove="services\plugins\Telecti_0.1\Telecti_0.1\Telecti.deps.json" />
+      <_ContentIncludedByDefault Remove="services\plugins\Lecti_0.1\Lecti.deps.json" />
     </ItemGroup>
 
 </Project>

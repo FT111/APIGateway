@@ -38,7 +38,7 @@ public class Checker : IRequestProcessor
                     Value = newVariation,
                     Namespace = stk.Identity.OriginManifest.Name,
                 };
-                await dataRepos.GetRepo<PluginData>().UpdateAsync(data);
+                await dataRepos.Context.Set<PluginData>().AddAsync(data, cancellationToken);
             }
 
             stk.DeferredTasks.QueueTask(Task);

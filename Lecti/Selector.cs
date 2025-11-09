@@ -13,7 +13,7 @@ public class Selector : IRequestProcessor
             Console.WriteLine(
                 $"Checking existing Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}, {stk.Identity.OriginManifest.Name}");
             var target = context.Target;
-            var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == target.Id.ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
+            var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
             var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(existingRecord.Value));
             context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
         }
@@ -39,10 +39,11 @@ public class Selector : IRequestProcessor
                 var data = new PluginData
                 {
                     Key = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
-                    Value = context.Target.Host,
+                    Value = context.Target.Id.ToString(),
                     Namespace = stk.Identity.OriginManifest.Name,
                 };
-                await dataRepos.GetRepo<PluginData>().UpdateAsync(data);
+                await dataRepos.Context.Set<PluginData>().AddAsync(data, cancellationToken);
+                await dataRepos.Context.SaveChangesAsync(cancellationToken);
             }
 
             stk.DeferredTasks.QueueTask(Task);
