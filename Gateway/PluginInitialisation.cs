@@ -50,16 +50,16 @@ public static class PluginInitialisation
             var manifest = plugin.GetManifest();
             var pluginKey = manifest.Name + "/" + manifest.Version;
             List<PluginConfig> configDbObjects = [];
-            // if (InitializedPlugins.Contains(pluginKey))
-            // {
-            //     Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
-            //     return;
-            // }
-            // RefreshInitialisedPlugins();
-            // if (InitializedPlugins.Contains(pluginKey))
-            // {
-            //     return; 
-            // }
+            if (InitializedPlugins.Contains(pluginKey))
+            {
+                Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
+                return;
+            }
+            RefreshInitialisedPlugins();
+            if (InitializedPlugins.Contains(pluginKey))
+            {
+                return; 
+            }
 
             Console.WriteLine($"Initialising plugin '{pluginKey}'...");
 
