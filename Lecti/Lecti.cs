@@ -92,10 +92,15 @@ public class Lecti : IPlugin
             {
                 InvalidationFrequency = TimeSpan.FromSeconds(5),
                 Fetch = (ctx) =>
-                {
-                    return Task.FromResult(ctx.Set<PluginData>().Where(dt => dt.Namespace == "Lecti"));
-                }
-                
+                    Task.FromResult(ctx.Set<PluginData>().Where(dt => dt.Namespace == "Lecti").AsQueryable())
+            });
+        
+        cache.Register(
+            "storedTargets",
+            new CachedData<IQueryable<Target>>
+            {
+                InvalidationFrequency = TimeSpan.FromMinutes(1),
+                Fetch = (ctx) => Task.FromResult(ctx.Set<Target>().AsQueryable())
             });
         // tel.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
         // {
