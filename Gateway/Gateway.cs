@@ -146,7 +146,7 @@ public class GatewayBuilder(IConfiguration configuration)
 
     public async Task<GatewayBuild> BuildFromConfiguration()
     {
-        await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "service/plugins");
+        
         PluginManager.LoadInternalServices(configuration["CoreServicesNamespace"] ?? "Gateway.services");
         var coreServices = configuration.GetSection("coreServices") ?? throw new InvalidOperationException("coreServices configuration section not found.");
         var requiredServices = new[] {"Store", "Supervisor", "TaskQueue", "ConfigurationProvider"};
@@ -165,10 +165,11 @@ public class GatewayBuilder(IConfiguration configuration)
             ?? throw new InvalidOperationException("TaskQueue service not found.");
         
         ConfigurationsProvider = new ConfigProvider(configuration, PluginManager);
+        PluginInitManager = new PluginInitialisation.PluginConfigManager(StoreFactory.CreateStore().Context, PluginManager);
         CacheManager = new CacheManager(StoreFactory);
         CacheManager.ConfigurePluginManager(PluginManager);
-        PluginInitManager = new PluginInitialisation.PluginConfigManager(StoreFactory.CreateStore().Context, PluginManager);
         
+        await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "service/plugins");
         return await Build();
     }
 }

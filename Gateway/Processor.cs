@@ -56,7 +56,7 @@ public class RequestPipeline
             DeferredTasks = _backgroundQueue,
             DataRepositories = _repositories,
             Identity = container.Processor.Identity,
-            Cache = _cacheManager.GetCache(container.Processor.Identity.Identifier)
+            Cache = _cacheManager.GetCache(container.Processor.Identity.OriginManifest.Name)
         };
         try
         {
