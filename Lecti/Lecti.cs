@@ -84,44 +84,55 @@ public class Lecti : IPlugin
         registrar.RegisterService<Checker>(this, new Checker(), ServiceTypes.PostProcessor);
     }
 
-    public void ConfigureDataRegistries(ITelemetryRegistrar tel, IPluginCacheManager cache)
+    public void ConfigureDataRegistries(PluginCache cache)
     {
-        tel.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
-        {
-            Name = "Lecti A/B Test Results",
-            Description = "Shows the current distribution of A/B test targets.",
-            GetData = (repoFactory) =>
+        cache.Register(
+            "assignedTargets",
+            new CachedData<IQueryable<PluginData>>
             {
-                var assignments = repoFactory.GetRepo<PluginData>()
-                    .QueryAsync((d) => d.Namespace == _manifest.Name && d.Category == "ipTargets").Result;
-                
-                var targetTotals = new Dictionary<string, double>();
-                foreach (var assignment in assignments)
+                InvalidationFrequency = TimeSpan.FromSeconds(5),
+                Fetch = (ctx) =>
                 {
-                    if (assignment.Value == null) continue;
-                    if (!double.TryParse(assignment.Value, out var value)) continue;
-
-                    if (!targetTotals.TryAdd(assignment.Key, 0))
-                    {
-                        targetTotals[assignment.Key] += 1;
-                    }
-                }
-                // Normalize the totals to be between 0 and 1
-                var total = targetTotals.Values.Sum();
-                if (total == 0) return new Visualisation.PieChartModel { Segments = new Dictionary<string, double>() };
-                
-                var segments = new Dictionary<string, double>();
-                foreach (var kvp in targetTotals)
-                {
-                    segments[kvp.Key] = kvp.Value / total;
+                    return Task.FromResult(ctx.Set<PluginData>().Where(dt => dt.Namespace == "Lecti"));
                 }
                 
-                return new Visualisation.PieChartModel
-                {
-                    Segments = segments
-                };
-            }
-        });
+            });
+        // tel.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
+        // {
+        //     Name = "Lecti A/B Test Results",
+        //     Description = "Shows the current distribution of A/B test targets.",
+        //     GetData = (repoFactory) =>
+        //     {
+        //         var assignments = repoFactory.GetRepo<PluginData>()
+        //             .QueryAsync((d) => d.Namespace == _manifest.Name && d.Category == "ipTargets").Result;
+        //         
+        //         var targetTotals = new Dictionary<string, double>();
+        //         foreach (var assignment in assignments)
+        //         {
+        //             if (assignment.Value == null) continue;
+        //             if (!double.TryParse(assignment.Value, out var value)) continue;
+        //
+        //             if (!targetTotals.TryAdd(assignment.Key, 0))
+        //             {
+        //                 targetTotals[assignment.Key] += 1;
+        //             }
+        //         }
+        //         // Normalize the totals to be between 0 and 1
+        //         var total = targetTotals.Values.Sum();
+        //         if (total == 0) return new Visualisation.PieChartModel { Segments = new Dictionary<string, double>() };
+        //         
+        //         var segments = new Dictionary<string, double>();
+        //         foreach (var kvp in targetTotals)
+        //         {
+        //             segments[kvp.Key] = kvp.Value / total;
+        //         }
+        //         
+        //         return new Visualisation.PieChartModel
+        //         {
+        //             Segments = segments
+        //         };
+        //     }
+        // });
     }
 
     public Dictionary<ServiceTypes, IService[]> GetServices()

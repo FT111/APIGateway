@@ -12,8 +12,13 @@ public class Selector : IRequestProcessor
         {
             Console.WriteLine(
                 $"Checking existing Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}, {stk.Identity.OriginManifest.Name}");
-            var target = context.Target;
-            var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
+            
+            // var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
+            // Search the cache for a previously assigned target to this client
+            var existingRecord = stk.Cache.Get<IQueryable<PluginData>>("assignedTargets")?.FirstOrDefault(dt =>
+                dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString());
+            if (existingRecord == null) throw new KeyNotFoundException();
+            
             var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(existingRecord.Value));
             context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
         }
