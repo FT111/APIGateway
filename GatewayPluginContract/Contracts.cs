@@ -132,6 +132,7 @@ public class ServiceContext
     public required IBackgroundQueue DeferredTasks { get; init; } 
     public required Repositories DataRepositories { get; init; }
     public required ServiceIdentity Identity { get; init; }
+    public required PluginCache Cache { get; init; }
 }
 
 public class ServiceIdentity
@@ -213,27 +214,27 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
     public required Func<Repositories, TModel> GetData { get; init; }
 }
 
-public interface IPluginCacheManager
+public abstract class PluginCacheManager(StoreFactory stf)
 {
-    public IPluginCache GetCache(string pluginIdentifier);
-    public IPluginCache NewCache(string pluginIdentifier);
+    public abstract PluginCache GetCache(string pluginIdentifier);
+    public abstract PluginCache NewCache(string pluginIdentifier);
 }
 
-public interface IPluginCache
+public abstract class PluginCache(DbContext ctx)
 {
-    public T? Get<T>(string key);
-    public void Register<T>(string key, CachedData<T> data) where T : class;
+    public abstract T? Get<T>(string key);
+    public abstract Task Register<T>(string key, CachedData<T> data) where T : class;
 }
 
-public abstract class CachedData<T> where T : class
+public class CachedData<T> where T : class
 {
     private T _data;
 
-    public required T Data { get => Volatile.Read(ref _data);
+    public T Data { get => Volatile.Read(ref _data);
         set => Interlocked.Exchange(ref _data, value);
     }
-    public abstract void UpdateData(DbContext data);
-    public TimeSpan InvalidationFrequency { get; init; }
+    public required Func<DbContext, Task<T>> Fetch { get; set; }
+    public TimeSpan? InvalidationFrequency { get; init; }
 }
 
 public interface IPlugin
@@ -244,7 +245,7 @@ public interface IPlugin
 
     public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar);
     
-    public void ConfigureDataRegistries(ITelemetryRegistrar tel, IPluginCacheManager cache);
+    public void ConfigureDataRegistries(PluginCache cache);
     
     public void InitialiseServiceConfiguration(DbContext context, Func<Func<PluginConfigDefinition, PluginConfigDefinition>, Task> addConfig);
 }
