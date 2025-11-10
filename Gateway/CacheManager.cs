@@ -7,7 +7,7 @@ namespace Gateway;
 public class CacheManager(StoreFactory stf) : PluginCacheManager(stf)
 {
     private readonly ConcurrentDictionary<string, PluginCache> _caches = new ConcurrentDictionary<string, PluginCache>();
-    private readonly DbContext _ctx = stf.CreateStore().Context;
+    private readonly StoreFactory _ctx = stf;
 
     public void ConfigurePluginManager(PluginManager pm)
     {
@@ -31,7 +31,7 @@ public class CacheManager(StoreFactory stf) : PluginCacheManager(stf)
 
     public override PluginCache NewCache(string pluginIdentifier)
     {
-        Cache newCache = new Cache(_ctx);
+        Cache newCache = new Cache(_ctx.CreateStore().Context);
         return !_caches.TryAdd(pluginIdentifier, newCache) ? throw new InvalidOperationException("Cache already exists") : newCache;
     }
 }
@@ -46,7 +46,8 @@ public class Cache(DbContext ctx) : PluginCache(ctx)
     
     public override T Get<T>(string key)
     {
-        return (T)_data[key];
+        var retrieved = (CachedData<T>)_data[key];
+        return retrieved.Data;
     }
 
     public override async Task Register<T>(string key, CachedData<T> data) where T : class

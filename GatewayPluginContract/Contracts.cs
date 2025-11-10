@@ -222,7 +222,7 @@ public abstract class PluginCacheManager(StoreFactory stf)
 
 public abstract class PluginCache(DbContext ctx)
 {
-    public abstract T? Get<T>(string key);
+    public abstract T? Get<T>(string key) where T : class;
     public abstract Task Register<T>(string key, CachedData<T> data) where T : class;
 }
 
