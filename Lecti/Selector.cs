@@ -38,14 +38,19 @@ public class Selector : IRequestProcessor
             var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(availableVariations[variation]));
             context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
 
+            // Capture values before queuing deferred task to avoid accessing disposed HTTP context
+            var ipAddress = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString();
+            var targetId = context.Target.Id.ToString();
+            var pluginNamespace = stk.Identity.OriginManifest.Name;
+
             // Store the assigned variation in the scoped store
             async Task Task(CancellationToken cancellationToken, Repositories dataRepos)
             {
                 var data = new PluginData
                 {
-                    Key = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
-                    Value = context.Target.Id.ToString(),
-                    Namespace = stk.Identity.OriginManifest.Name,
+                    Key = ipAddress,
+                    Value = targetId,
+                    Namespace = pluginNamespace,
                 };
                 await dataRepos.Context.Set<PluginData>().AddAsync(data, cancellationToken);
                 await dataRepos.Context.SaveChangesAsync(cancellationToken);
