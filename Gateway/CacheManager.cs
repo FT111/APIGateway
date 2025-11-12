@@ -21,26 +21,15 @@ public class CacheManager(StoreFactory stf) : PluginCacheManager(stf)
     
     public override PluginCache GetCache(string pluginIdentifier)
     {
-        if (!_caches.TryGetValue(pluginIdentifier, out var cache))
-        {
-            cache = NewCache(pluginIdentifier);
-        }
-        
-        return cache;
-    }
-
-    public override PluginCache NewCache(string pluginIdentifier)
-    {
-        Cache newCache = new Cache(_ctx.CreateStore().Context);
-        return !_caches.TryAdd(pluginIdentifier, newCache) ? throw new InvalidOperationException("Cache already exists") : newCache;
+        return _caches.GetOrAdd(pluginIdentifier, id => new Cache(_ctx));
     }
 }
 
-public class Cache(DbContext ctx) : PluginCache(ctx)
+public class Cache(StoreFactory ctx) : PluginCache(ctx)
 {
     private ConcurrentDictionary<string, object> _data = new ConcurrentDictionary<string, object>();
     private ConcurrentDictionary<string, SemaphoreSlim> _locks = new ConcurrentDictionary<string, SemaphoreSlim>();
-    private DbContext _ctx = ctx;
+    private StoreFactory _ctx = ctx;
 
 
     
@@ -52,12 +41,12 @@ public class Cache(DbContext ctx) : PluginCache(ctx)
 
     public override async Task Register<T>(string key, CachedData<T> data) where T : class
     {
-        data.Data = await data.Fetch(_ctx);
+        data.Data = await data.Fetch(_ctx.CreateStore().Context);
         if (!_data.TryAdd(key, data) || !_locks.TryAdd(key, new SemaphoreSlim(1, 1)))
         {
             throw new InvalidOperationException("Item already exists");
         }
-        _ = AddCacheDaemonAsync(data, key);
+        _ = AddCacheDaemonAsync(data, key).ConfigureAwait(false);
     }
 
     private async Task AddCacheDaemonAsync<T>(CachedData<T> data, string key) where T : class
@@ -71,9 +60,15 @@ public class Cache(DbContext ctx) : PluginCache(ctx)
                 _locks.TryAdd(key, new SemaphoreSlim(1, 1));
             }
             await _locks[key].WaitAsync();
-            
-            data.Data = await data.Fetch(_ctx);
+
+            data.Data = await data.Fetch(_ctx.CreateStore().Context);
             _locks[key].Release();
         }
     }
+}
+
+public class CacheHandler(StoreFactory ctx)
+{
+    private StoreFactory _ctx = ctx;
+    private ConcurrentQueue
 }

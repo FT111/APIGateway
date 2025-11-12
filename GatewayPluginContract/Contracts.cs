@@ -217,10 +217,9 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
 public abstract class PluginCacheManager(StoreFactory stf)
 {
     public abstract PluginCache GetCache(string pluginIdentifier);
-    public abstract PluginCache NewCache(string pluginIdentifier);
 }
 
-public abstract class PluginCache(DbContext ctx)
+public abstract class PluginCache(StoreFactory ctx)
 {
     public abstract T? Get<T>(string key) where T : class;
     public abstract Task Register<T>(string key, CachedData<T> data) where T : class;
