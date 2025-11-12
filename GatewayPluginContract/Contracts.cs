@@ -219,11 +219,14 @@ public abstract class PluginCacheManager(StoreFactory stf)
     public abstract PluginCache GetCache(string pluginIdentifier);
 }
 
-public abstract class PluginCache(StoreFactory ctx)
+public abstract class PluginCache(StoreFactory ctx, ICacheHandler ch)
 {
     public abstract T? Get<T>(string key) where T : class;
     public abstract Task Register<T>(string key, CachedData<T> data) where T : class;
 }
+
+public interface ICacheHandler
+{}
 
 public class CachedData<T> where T : class
 {
