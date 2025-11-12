@@ -88,19 +88,19 @@ public class Lecti : IPlugin
     {
         cache.Register(
             "assignedTargets",
-            new CachedData<IQueryable<PluginData>>
+            new CachedData<List<PluginData>>
             {
                 InvalidationFrequency = TimeSpan.FromSeconds(5),
                 Fetch = (ctx) =>
-                    Task.FromResult(ctx.Set<PluginData>().Where(dt => dt.Namespace == "Lecti").AsQueryable())
+                    Task.FromResult(ctx.Set<PluginData>().Where(dt => dt.Namespace == "Lecti").ToList())
             });
         
         cache.Register(
             "storedTargets",
-            new CachedData<IQueryable<Target>>
+            new CachedData<List<Target>>
             {
                 InvalidationFrequency = TimeSpan.FromMinutes(1),
-                Fetch = (ctx) => Task.FromResult(ctx.Set<Target>().AsQueryable())
+                Fetch = (ctx) => Task.FromResult(ctx.Set<Target>().ToList())
             });
         // tel.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
         // {
