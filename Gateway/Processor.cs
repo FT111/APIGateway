@@ -68,22 +68,22 @@ public class RequestPipeline
             switch (container.FailurePolicy)
             {
                 case ServiceFailurePolicies.Ignore:
-                    Console.WriteLine($"Ignoring failure in processor {container.Identifier}: {ex.Message}");
+                    
                     break;
                 case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
+                    
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.RetryThenBlock:
-                    Console.WriteLine($"Blocking pipeline as  {container.Identifier} failed. failure: {ex.Message}");
+                    
                     context.IsBlocked = true;
                     break;
                 case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
+                    
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.Block:
-                    Console.WriteLine($"Blocking pipeline as {container.Identifier} failed. failure: {ex.Message}");
+                    
                     context.IsBlocked = true;
                     break;
                 default:
@@ -100,7 +100,7 @@ public class RequestPipeline
         }
         if (context is { IsRestartRequested: true, RestartCount: < 3 })
         {
-            Console.WriteLine("Restart requested, reprocessing the pipeline.");
+            
             context.RestartCount++;
             await ProcessAsync(context, httpContext);
             throw new Exceptions.PipelineEndedException("Pipeline processing gracefully restarted recursively due to request.");
@@ -122,7 +122,7 @@ public class RequestPipeline
 
             foreach (var processor in _preProcessors)
             {
-                Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
+                
                 await UseProcessor(processor, context);
                 await HandleContextRequests(context, httpContext);
             }
@@ -135,7 +135,7 @@ public class RequestPipeline
 
             foreach (var processor in _postProcessors)
             {
-                Console.WriteLine($"Processing post-processor: {processor.Identifier}");
+                
                 await UseProcessor(processor, context);
                 await HandleContextRequests(context, httpContext);
             }
@@ -154,7 +154,7 @@ public class RequestPipeline
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
         LogRequestAsync(context);
-        Console.WriteLine($"Processed Request to {context.Target.Id}");
+        
     }
     
     private async Task SetupPipeline(RequestContext context)

@@ -90,7 +90,7 @@ public static class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
-        Console.WriteLine(app.Services.GetRequiredService<AuthHandler>().GeneratePasswordHash("test"));
+        
 
         Handler.HandleRoutes(app);
         var packageManager = app.Services.GetRequiredService<PackageManager>();

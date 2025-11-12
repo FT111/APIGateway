@@ -64,7 +64,7 @@ public class PluginManager
                         p.GetManifest().Name == dep.Name && dep.VersionCheck(p.GetManifest().Version)))
                 {
                     // If the dependency is provided, set it as provided
-                    Console.WriteLine($"Dependency '{dep.Name}' found for plugin '{manifest.Name}'.");
+                    
                     dep.IsProvided = true;
                     return;
                 }
@@ -72,7 +72,7 @@ public class PluginManager
                 // If the dependency is optional, log a message and continue
                 if (dep.IsOptional)
                 {
-                    Console.WriteLine($"Optional dependency '{dep.Name}' not found for plugin '{manifest.Name}'. Continuing.");
+                    
                     dep.IsProvided = false;
                 }
                 else
@@ -161,7 +161,7 @@ public class PluginManager
         var httpClient = new HttpClient();
         identifier = identifier.Replace("/", "_");
         var fullDeliveryUrl = PluginDeliveryUrl + "/" + identifier + ".gap";
-        Console.WriteLine($"Downloading plugin from: {fullDeliveryUrl}");
+        
         var response = await httpClient.GetAsync(fullDeliveryUrl);
         response.EnsureSuccessStatusCode();
         
@@ -247,7 +247,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             
         };
         
-        Console.WriteLine($"Registered service: {identifier} of type {serviceType}");
+        
     }
     
     public void RegisterServiceWithTypeDef(Type serviceInstanceType , IPlugin? parentPlugin, object serviceInstance, ServiceTypes serviceType)

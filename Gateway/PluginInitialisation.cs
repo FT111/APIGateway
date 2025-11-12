@@ -52,7 +52,7 @@ public static class PluginInitialisation
             List<PluginConfig> configDbObjects = [];
             if (InitializedPlugins.Contains(pluginKey))
             {
-                Console.WriteLine($"Plugin '{pluginKey}' already initialised. Skipping.");
+                
                 return;
             }
             RefreshInitialisedPlugins();
@@ -61,7 +61,7 @@ public static class PluginInitialisation
                 return; 
             }
 
-            Console.WriteLine($"Initialising plugin '{pluginKey}'...");
+            
 
             Task AddConfig(Func<PluginConfigDefinition, PluginConfigDefinition> conf)
             {
@@ -95,7 +95,7 @@ public static class PluginInitialisation
             _context.Set<PluginConfig>().AddRange(newDefs);
             _context.SaveChanges();
             // RegisterPlugin(pluginKey);
-            Console.WriteLine($"Plugin '{pluginKey}' initialised.");
+            
         }
     }
 }

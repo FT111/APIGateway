@@ -43,7 +43,7 @@ namespace Gateway
             {
                 if (!currentNode.Children.TryGetValue(segment, out var child))
                 {
-                    Console.WriteLine($"No exact match for path '{path}'. Closest match ends at segment '{currentNode.Segment}' with endpoint {currentNode.Endpoint?.Path}");
+                    
                     return currentNode;
                 }
                 
@@ -53,7 +53,7 @@ namespace Gateway
                 }
             }
             
-            Console.WriteLine($"Exact match found for path '{path}' with endpoint {currentNode.Endpoint?.Path}");
+            
             return currentNode;
         }
     }

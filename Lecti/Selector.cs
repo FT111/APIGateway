@@ -11,9 +11,6 @@ public class Selector : IRequestProcessor
         var clientIp = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4();
         try
         {
-            Console.WriteLine(
-                $"Checking existing Lecti variation for {clientIp}, {stk.Identity.OriginManifest.Name}");
-
             // var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
             // Search the cache for a previously assigned target to this client
             var existingRecord = stk.Cache.Get<IQueryable<PluginData>>("assignedTargets")?.AsParallel().FirstOrDefault(dt =>
@@ -28,9 +25,6 @@ public class Selector : IRequestProcessor
         {
             // If not, randomly assign one of the variations
             var random = new Random();
-            Console.WriteLine(
-                $"Assigning new Lecti variation for {clientIp}");
-
 
             List<string> availableVariations =
                 System.Text.Json.JsonSerializer.Deserialize<List<string>>(

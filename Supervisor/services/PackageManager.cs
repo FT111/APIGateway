@@ -13,7 +13,7 @@ public class PackageManager
     
     public PackageManager(IConfiguration configuration, InternalTypes.Repositories.Gateway data, IPluginPackageManager pluginPackageManager, SupervisorAdapter messageAdapter)
     {
-        Console.WriteLine("Starting PackageManager service");
+        
         _configuration = configuration;
         _data = data;
         _packager = pluginPackageManager;
@@ -30,7 +30,7 @@ public class PackageManager
             {
                 return;
             }
-            Console.WriteLine("Received package URL request, sending package URL");
+            
             await _messageAdapter.SendEventAsync(new SupervisorEvent
             {
                 Type = SupervisorEventType.Response,
