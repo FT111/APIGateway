@@ -18,6 +18,22 @@ public class Routes
             return await res.WithData(endpoints).WithPagination();
         }).WithTags("Queryable").WithName("GetEndpoints");
 
+        group.MapGet("/{id:guid}",
+              (Guid id, InternalTypes.Repositories.Gateway data,
+                Utils.ResponseStructure<Models.EndpointResponse> res) =>
+            {
+                Models.EndpointResponse? endpoint = data.Context.Set<Endpoint>()
+                    .Include(e => e.Target)
+                    .Include(e => e.Deployment)
+                    .Include(e => e.Deployment.Status)
+                    .AsNoTracking()
+                    .Select(Mapping.ToResponse)
+                    .FirstOrDefault(e => e.Id == id);
+                
+                if (endpoint == null) return Results.NotFound();
+                return Results.Ok(res.WithData(endpoint));
+            }).WithName("GetEndpoint");
+
         group.MapPost("/", async (HttpContext context, InternalTypes.Repositories.Gateway data, Models.CreateEndpointRequest endpoint, Utils.ResponseStructure<Models.EndpointResponse> res) =>
         {
             // Validate endpoint is linked to a valid deployment
