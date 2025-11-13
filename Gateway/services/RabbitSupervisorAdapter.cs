@@ -89,7 +89,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += async (model, ea) =>
         {
-            Console.WriteLine($"Received message with CorrelationId: {ea.BasicProperties.CorrelationId}, awaiting: {correlationId}");
+            
             if (ea.BasicProperties.CorrelationId == correlationId.ToString())
             {
                 var body = ea.Body.ToArray();
@@ -134,7 +134,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
                 Value = message,
                 CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };
-            Console.WriteLine($"Received supervisor event: {eventData.Type} with value: {eventData.Value}");
+            
             await handler(eventData);
             
         };

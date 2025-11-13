@@ -53,7 +53,7 @@ public class ConfigProvider : IConfigurationsProvider
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to load {serviceName}: {e.Message}");
+            
         }
     }
 
@@ -84,13 +84,10 @@ public class ConfigProvider : IConfigurationsProvider
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to load service '{service}': {e.Message}");
+                
             }
         }
 
-        Console.WriteLine($"-======= Loaded pipe configuration for endpoint with {
-            pipe.PreProcessors.Count + pipe.PostProcessors.Count
-        } services =======-");
         return pipe;
     }
     

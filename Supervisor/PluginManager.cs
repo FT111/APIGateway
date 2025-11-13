@@ -30,7 +30,7 @@ public class PluginManager(IConfiguration configuration)
                         p.GetManifest().Name == dep.Name && dep.VersionCheck(p.GetManifest().Version)))
                 {
                     // If the dependency is provided, set it as provided
-                    Console.WriteLine($"Dependency '{dep.Name}' found for plugin '{manifest.Name}'.");
+                    
                     dep.IsProvided = true;
                     return;
                 }
@@ -38,7 +38,7 @@ public class PluginManager(IConfiguration configuration)
                 // If the dependency is optional, log a message and continue
                 if (dep.IsOptional)
                 {
-                    Console.WriteLine($"Optional dependency '{dep.Name}' not found for plugin '{manifest.Name}'. Continuing.");
+                    
                     dep.IsProvided = false;
                 }
                 else
@@ -166,7 +166,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             
         };
         
-        Console.WriteLine($"Registered service: {identifier} of type {serviceType}");
+        
     }
     
     internal void RegisterInternalService(IService service, string serviceName)
@@ -196,7 +196,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             }
         };
 
-        Console.WriteLine($"Registered internal service: {serviceName} of type {ServiceTypes.Core}");
+        
     }    
     internal void RegisterInternalServiceWithRuntimeType(Type serviceInstanceType, object serviceInstance, string componentName)
     {

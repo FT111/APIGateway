@@ -6,12 +6,35 @@ using Microsoft.EntityFrameworkCore;
 namespace Gateway;
 
 
-public class PluginManager(IConfiguration configuration)
+public class PluginManager
 {
-    private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+    private readonly IConfiguration _configuration;
     internal List<IPlugin> Plugins = [];
     internal string PluginDeliveryUrl = string.Empty;
     internal readonly PluginServiceRegistrar Registrar = new();
+    private List<Func<IPlugin, Task>> _pluginLoadPipeline = [];
+
+    public PluginManager(IConfiguration configuration)
+    {
+        // Setup default load pipeline
+        AddPluginLoadStep(plugin =>
+        {
+            Plugins.Add(plugin);
+            return Task.CompletedTask;
+        });
+        AddPluginLoadStep(plugin =>
+        {
+            plugin.ConfigurePluginRegistrar(Registrar);
+            return Task.CompletedTask;
+        });
+        
+        _configuration =  configuration ?? throw new ArgumentNullException(nameof(configuration));
+    }
+
+    internal void AddPluginLoadStep(Func<IPlugin, Task> step)
+    {
+        _pluginLoadPipeline.Add(step);
+    }
     
     public class PluginVerificationResult
     {
@@ -41,7 +64,7 @@ public class PluginManager(IConfiguration configuration)
                         p.GetManifest().Name == dep.Name && dep.VersionCheck(p.GetManifest().Version)))
                 {
                     // If the dependency is provided, set it as provided
-                    Console.WriteLine($"Dependency '{dep.Name}' found for plugin '{manifest.Name}'.");
+                    
                     dep.IsProvided = true;
                     return;
                 }
@@ -49,7 +72,7 @@ public class PluginManager(IConfiguration configuration)
                 // If the dependency is optional, log a message and continue
                 if (dep.IsOptional)
                 {
-                    Console.WriteLine($"Optional dependency '{dep.Name}' not found for plugin '{manifest.Name}'. Continuing.");
+                    
                     dep.IsProvided = false;
                 }
                 else
@@ -90,15 +113,18 @@ public class PluginManager(IConfiguration configuration)
             foreach (var pluginLoaderType in pluginLoader.LoadDefaultAssembly().GetTypes()
                 .Where(t => typeof(IPlugin).IsAssignableFrom(t) && t is { IsAbstract: false, IsClass: true }))
             {
+                // Create an instance of the plugin from the assembly found
                 var plugin = pluginLoader.LoadDefaultAssembly().CreateInstance(pluginLoaderType.FullName) as IPlugin;
                 if (plugin == null)
                 {
                     continue;
                 }
-
-                Plugins.Add(plugin);
                 
-                plugin.ConfigurePluginRegistrar(Registrar);
+                // Run the plugin load pipeline
+                foreach (var step in _pluginLoadPipeline)
+                {
+                    step(plugin);
+                }
             }
         }
         ResolveDependencies();
@@ -135,7 +161,7 @@ public class PluginManager(IConfiguration configuration)
         var httpClient = new HttpClient();
         identifier = identifier.Replace("/", "_");
         var fullDeliveryUrl = PluginDeliveryUrl + "/" + identifier + ".gap";
-        Console.WriteLine($"Downloading plugin from: {fullDeliveryUrl}");
+        
         var response = await httpClient.GetAsync(fullDeliveryUrl);
         response.EnsureSuccessStatusCode();
         
@@ -221,7 +247,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
             
         };
         
-        Console.WriteLine($"Registered service: {identifier} of type {serviceType}");
+        
     }
     
     public void RegisterServiceWithTypeDef(Type serviceInstanceType , IPlugin? parentPlugin, object serviceInstance, ServiceTypes serviceType)

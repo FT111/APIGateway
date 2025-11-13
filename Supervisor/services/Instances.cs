@@ -83,14 +83,14 @@ public static class Instances
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error during instance health check: {ex.Message}");
+                    
                 }
             }
         }
         
         private Task HandleHeartbeat(SupervisorEvent e)
         {
-            Console.WriteLine($"Current instances: {string.Join(", ", Instances.Keys)}");
+            
             var instanceId = Guid.Parse(e.Value ?? throw new InvalidOperationException("Heartbeat event missing instance ID"));
             if (Instances.TryGetValue(instanceId, out var existingInstance))
             {

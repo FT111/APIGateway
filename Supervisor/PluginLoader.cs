@@ -29,7 +29,7 @@ public static class PluginLoader
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            
             devEnv = false;
         }
 
@@ -69,7 +69,7 @@ public static class PluginLoader
         var pluginLoaders = new List<McMaster.NETCore.Plugins.PluginLoader>();
         foreach (string pluginDll in GetPluginDlls(subDirectory))
         {
-            Console.WriteLine($"Loading plugin from {pluginDll}");
+            
             pluginLoaders.Add(
                 McMaster.NETCore.Plugins.PluginLoader.CreateFromAssemblyFile(
                     pluginDll,

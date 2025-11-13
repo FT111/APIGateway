@@ -66,7 +66,7 @@ public class Lecti : IPlugin
                     }
 
                     var matchingTargets = context.Set<Target>().Where(target => parsedTargets.Contains(target.Id)).ToArray().Length;
-                    Console.WriteLine("matching targets:::: " + matchingTargets);
+                    
                     return matchingTargets == parsedTargets.Count;
                 }
                 catch (Exception e)
@@ -84,44 +84,60 @@ public class Lecti : IPlugin
         registrar.RegisterService<Checker>(this, new Checker(), ServiceTypes.PostProcessor);
     }
 
-    public void ConfigureDataRegistrar(IDataRegistrar registrar)
+    public void ConfigureDataRegistries(PluginCache cache)
     {
-        registrar.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
-        {
-            Name = "Lecti A/B Test Results",
-            Description = "Shows the current distribution of A/B test targets.",
-            GetData = (repoFactory) =>
+        cache.Register(
+            "assignedTargets",
+            new CachedData<List<PluginData>>
             {
-                var assignments = repoFactory.GetRepo<PluginData>()
-                    .QueryAsync((d) => d.Namespace == _manifest.Name && d.Category == "ipTargets").Result;
-                
-                var targetTotals = new Dictionary<string, double>();
-                foreach (var assignment in assignments)
-                {
-                    if (assignment.Value == null) continue;
-                    if (!double.TryParse(assignment.Value, out var value)) continue;
-
-                    if (!targetTotals.TryAdd(assignment.Key, 0))
-                    {
-                        targetTotals[assignment.Key] += 1;
-                    }
-                }
-                // Normalize the totals to be between 0 and 1
-                var total = targetTotals.Values.Sum();
-                if (total == 0) return new Visualisation.PieChartModel { Segments = new Dictionary<string, double>() };
-                
-                var segments = new Dictionary<string, double>();
-                foreach (var kvp in targetTotals)
-                {
-                    segments[kvp.Key] = kvp.Value / total;
-                }
-                
-                return new Visualisation.PieChartModel
-                {
-                    Segments = segments
-                };
-            }
-        });
+                InvalidationFrequency = TimeSpan.FromSeconds(5),
+                Fetch = (ctx) =>
+                    Task.FromResult(ctx.Set<PluginData>().Where(dt => dt.Namespace == "Lecti").ToList())
+            });
+        
+        cache.Register(
+            "storedTargets",
+            new CachedData<List<Target>>
+            {
+                InvalidationFrequency = TimeSpan.FromMinutes(1),
+                Fetch = (ctx) => Task.FromResult(ctx.Set<Target>().ToList())
+            });
+        // tel.RegisterDataCard(new DataCard<Visualisation.PieChartModel>
+        // {
+        //     Name = "Lecti A/B Test Results",
+        //     Description = "Shows the current distribution of A/B test targets.",
+        //     GetData = (repoFactory) =>
+        //     {
+        //         var assignments = repoFactory.GetRepo<PluginData>()
+        //             .QueryAsync((d) => d.Namespace == _manifest.Name && d.Category == "ipTargets").Result;
+        //         
+        //         var targetTotals = new Dictionary<string, double>();
+        //         foreach (var assignment in assignments)
+        //         {
+        //             if (assignment.Value == null) continue;
+        //             if (!double.TryParse(assignment.Value, out var value)) continue;
+        //
+        //             if (!targetTotals.TryAdd(assignment.Key, 0))
+        //             {
+        //                 targetTotals[assignment.Key] += 1;
+        //             }
+        //         }
+        //         // Normalize the totals to be between 0 and 1
+        //         var total = targetTotals.Values.Sum();
+        //         if (total == 0) return new Visualisation.PieChartModel { Segments = new Dictionary<string, double>() };
+        //         
+        //         var segments = new Dictionary<string, double>();
+        //         foreach (var kvp in targetTotals)
+        //         {
+        //             segments[kvp.Key] = kvp.Value / total;
+        //         }
+        //         
+        //         return new Visualisation.PieChartModel
+        //         {
+        //             Segments = segments
+        //         };
+        //     }
+        // });
     }
 
     public Dictionary<ServiceTypes, IService[]> GetServices()

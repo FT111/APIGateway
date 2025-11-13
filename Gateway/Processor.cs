@@ -21,6 +21,7 @@ public class RequestPipeline
     private  GatewayPluginContract.IRequestForwarder? _forwarder;
     private readonly IConfigurationsProvider? _configManager;
     private readonly Repositories _repositories;
+    private readonly CacheManager _cacheManager;
     private readonly IBackgroundQueue _backgroundQueue;
     public RouteTrie Router;
 
@@ -30,7 +31,8 @@ public class RequestPipeline
         IConfigurationsProvider configManager,
         Repositories repositories,
         IBackgroundQueue backgroundQueue,
-        RouteTrie router)
+        RouteTrie router,
+        CacheManager cacheManager)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
@@ -39,6 +41,7 @@ public class RequestPipeline
         _repositories = repositories;
         _backgroundQueue = backgroundQueue;
         Router = router;
+        _cacheManager = cacheManager;
     }
 
     public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -53,6 +56,7 @@ public class RequestPipeline
             DeferredTasks = _backgroundQueue,
             DataRepositories = _repositories,
             Identity = container.Processor.Identity,
+            Cache = _cacheManager.GetCache(container.Processor.Identity.OriginManifest.Name)
         };
         try
         {
@@ -64,22 +68,22 @@ public class RequestPipeline
             switch (container.FailurePolicy)
             {
                 case ServiceFailurePolicies.Ignore:
-                    Console.WriteLine($"Ignoring failure in processor {container.Identifier}: {ex.Message}");
+                    
                     break;
                 case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
+                    
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.RetryThenBlock:
-                    Console.WriteLine($"Blocking pipeline as  {container.Identifier} failed. failure: {ex.Message}");
+                    
                     context.IsBlocked = true;
                     break;
                 case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
-                    Console.WriteLine($"Retrying processor {container.Identifier} due to failure: {ex.Message}");
+                    
                     context.IsRestartRequested = true;
                     break;
                 case ServiceFailurePolicies.Block:
-                    Console.WriteLine($"Blocking pipeline as {container.Identifier} failed. failure: {ex.Message}");
+                    
                     context.IsBlocked = true;
                     break;
                 default:
@@ -96,7 +100,7 @@ public class RequestPipeline
         }
         if (context is { IsRestartRequested: true, RestartCount: < 3 })
         {
-            Console.WriteLine("Restart requested, reprocessing the pipeline.");
+            
             context.RestartCount++;
             await ProcessAsync(context, httpContext);
             throw new Exceptions.PipelineEndedException("Pipeline processing gracefully restarted recursively due to request.");
@@ -118,7 +122,7 @@ public class RequestPipeline
 
             foreach (var processor in _preProcessors)
             {
-                Console.WriteLine($"Processing pre-processor: {processor.Identifier}");
+                
                 await UseProcessor(processor, context);
                 await HandleContextRequests(context, httpContext);
             }
@@ -131,7 +135,7 @@ public class RequestPipeline
 
             foreach (var processor in _postProcessors)
             {
-                Console.WriteLine($"Processing post-processor: {processor.Identifier}");
+                
                 await UseProcessor(processor, context);
                 await HandleContextRequests(context, httpContext);
             }
@@ -150,7 +154,7 @@ public class RequestPipeline
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
         LogRequestAsync(context);
-        Console.WriteLine($"Processed Request to {context.Target.Id}");
+        
     }
     
     private async Task SetupPipeline(RequestContext context)
@@ -215,6 +219,7 @@ public class RequestPipelineBuilder
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
     private RouteTrie? Router { get; set; } = null;
     private IBackgroundQueue? _backgroundQueue = null;
+    private CacheManager? _cacheManager = null;
     private Repositories? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
 
@@ -306,9 +311,15 @@ public class RequestPipelineBuilder
         return this;
     }
 
+    public RequestPipelineBuilder WithCacheProvider(CacheManager cacheManager)
+    {
+        _cacheManager = cacheManager;
+        return this;
+    }
+
     public RequestPipeline Build()
     {
-        if (_configManager == null || _repoFactory == null || _backgroundQueue == null || Router == null)
+        if (_configManager == null || _repoFactory == null || _backgroundQueue == null || Router == null || _cacheManager == null)
         {
             throw new InvalidOperationException("All required components (config manager, store, background queue) must be set before building the pipeline.");
         }
@@ -317,6 +328,6 @@ public class RequestPipelineBuilder
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue, Router);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue, Router, _cacheManager);
     }
 }

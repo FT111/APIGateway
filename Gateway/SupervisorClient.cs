@@ -48,7 +48,7 @@ public class SupervisorClient(
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending initial heartbeat: {ex.Message}");
+                
             }
         }
     }
@@ -60,7 +60,7 @@ public class SupervisorClient(
             if (eventData.Value != null && eventData.Value.StartsWith("http"))
             {
                 gateway.PluginManager.PluginDeliveryUrl = eventData.Value;
-                Console.WriteLine($"Updated plugin delivery URL to: {eventData.Value}");
+                
             }
         });
     }
@@ -83,13 +83,13 @@ public class SupervisorClient(
         switch (eventData.Value)
         {
             case "update_plugins":
-                Console.WriteLine("Received plugin update command. Updating plugins...");
+                
 
                 if (await HandlePluginDiscrepancies()) return;
 
                 break;
             case "restart":
-                Console.WriteLine("Received gateway restart command. Restarting gateway...");
+                
                 var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var newProcess = new System.Diagnostics.ProcessStartInfo
                 {
@@ -106,7 +106,7 @@ public class SupervisorClient(
                 await gateway.RebuildRouterAsync();
                 break;
             case "stop":
-                Console.WriteLine("Received gateway stop command. Stopping gateway...");
+                
                 var instance = await _context.Set<Instance>().Where(i => i.Id == gateway.Identity.Id).FirstOrDefaultAsync();
                 if (instance != null)
                 {
@@ -118,7 +118,7 @@ public class SupervisorClient(
                 Environment.Exit(0);
                 break;
             default:
-                Console.WriteLine($"Unknown command received: {eventData.Value}");
+                
                 break;
         }
         await Task.CompletedTask;
@@ -141,7 +141,7 @@ public class SupervisorClient(
         {
             foreach (var plugin in pluginVerification.Missing)
             {
-                Console.WriteLine($"Downloading and installing plugin: {plugin}");
+                
                 await gateway.PluginManager.DownloadAndInstallPluginAsync(plugin);
             }
                     
@@ -167,7 +167,7 @@ public class SupervisorClient(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error downloading or installing plugins: {ex.Message}");
+            
         }
     
 

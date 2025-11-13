@@ -132,7 +132,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
                 Value = message,
                 CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };
-            Console.WriteLine($"Received supervisor event: {eventData.Type} with value: {eventData.Value}");
+            
             await handler(eventData);
             
         };

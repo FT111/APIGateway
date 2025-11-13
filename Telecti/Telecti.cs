@@ -48,7 +48,7 @@ public class Telecti : IPlugin
         registrar.RegisterService<TelectiInitialiser>(this, new TelectiInitialiser(), ServiceTypes.PreProcessor);
     }
     
-    public void ConfigureDataRegistrar(GatewayPluginContract.IDataRegistrar registrar)
+    public void ConfigureDataRegistries(PluginCache cache)
     {
     }
     

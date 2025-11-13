@@ -12,10 +12,10 @@ public class Checker : IRequestProcessor
     public Task ProcessAsync(RequestContext context, ServiceContext stk)
     {
         // Reroute the request if the response is not successful
-        Console.WriteLine($"Checking response status code: {context.Response.StatusCode} for request to {context.Request.Path}");
+        
         if (context.Response.StatusCode.ToString()[0] != '5' && !context.IsForwardingFailed) return Task.CompletedTask;
         
-        Console.WriteLine($"Response from {context.Target.Host} failed with status code {context.Response.StatusCode} and {context.IsForwardingFailed} fault. Checking for fallbacks...");
+        
 
         List<string> availableVariations =
             System.Text.Json.JsonSerializer.Deserialize<List<string>>(
@@ -45,11 +45,11 @@ public class Checker : IRequestProcessor
             context.Target.Host = newVariation;
             context.IsRestartRequested = true;
 
-            Console.WriteLine($"Falling back to {newVariation} for request to {context.Request.Path}");
+            
         }
         else
         {
-            Console.WriteLine("No fallback variations available.");
+            
         }
         return Task.CompletedTask;
 

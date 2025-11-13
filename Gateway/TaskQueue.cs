@@ -22,7 +22,7 @@ public class TaskQueueHandler(StoreFactory storeProvider, LocalTaskQueue localTa
             catch (Exception ex)
             {
                 // Log the exception or handle it as needed
-                Console.WriteLine($"Error processing deferred task: {ex}");
+                
             }
         }
     }

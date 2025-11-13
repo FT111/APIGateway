@@ -8,37 +8,42 @@ public class Selector : IRequestProcessor
     public async Task ProcessAsync(RequestContext context, ServiceContext stk)
     {
         // Checks if the IP has already been given an A/B variation
+        var clientIp = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4();
         try
         {
-            Console.WriteLine(
-                $"Checking existing Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}, {stk.Identity.OriginManifest.Name}");
-            var target = context.Target;
-            var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
-            var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(existingRecord.Value));
-            context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
+            // var existingRecord = stk.DataRepositories.GetRepo<PluginData>().QueryAsync(dt => (dt.Key == context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString()) && (dt.Namespace==stk.Identity.OriginManifest.Name)).Result.FirstOrDefault() ?? throw new KeyNotFoundException("No existing record found for the IP address.");
+            // Search the cache for a previously assigned target to this client
+            var existingRecord = stk.Cache.Get<List<PluginData>>("assignedTargets")?.FirstOrDefault(dt =>
+                dt.Key == clientIp.ToString());
+            if (existingRecord == null) throw new KeyNotFoundException();
+
+            var assignedTarget = stk.Cache.Get<List<Target>>("storedTargets")?.FirstOrDefault(t => t.Id == Guid.Parse(existingRecord.Value));
+            context.Target = assignedTarget ??
+                             throw new KeyNotFoundException("Assigned target not found in the database.");
         }
         catch (Exception)
         {
             // If not, randomly assign one of the variations
             var random = new Random();
-            Console.WriteLine(
-                $"Assigning new Lecti variation for {context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4()}");
-
 
             List<string> availableVariations =
                 System.Text.Json.JsonSerializer.Deserialize<List<string>>(
-                    context.PluginConfiguration[stk.Identity.OriginManifest.Name]["downstream_variants"]) ?? throw new InvalidOperationException("No downstream variations configured.");
+                    context.PluginConfiguration[stk.Identity.OriginManifest.Name]["downstream_variants"]) ??
+                throw new InvalidOperationException("No downstream variations configured.");
             var variation = random.Next(0, availableVariations.Count);
-            
-            var assignedTarget = await stk.DataRepositories.Context.Set<Target>().FindAsync(Guid.Parse(availableVariations[variation]));
-            context.Target = assignedTarget ?? throw new KeyNotFoundException("Assigned target not found in the database.");
+
+            var assignedTarget = await stk.DataRepositories.Context.Set<Target>()
+                .FindAsync(Guid.Parse(availableVariations[variation]));
+            context.Target = assignedTarget ??
+                             throw new KeyNotFoundException("Assigned target not found in the database.");
 
             // Store the assigned variation in the scoped store
             async Task Task(CancellationToken cancellationToken, Repositories dataRepos)
+
             {
                 var data = new PluginData
                 {
-                    Key = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString(),
+                    Key = clientIp.ToString(),
                     Value = context.Target.Id.ToString(),
                     Namespace = stk.Identity.OriginManifest.Name,
                 };

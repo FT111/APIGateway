@@ -161,7 +161,7 @@ public class EfStoreFactory(IConfiguration configuration) : StoreFactory(configu
         
         if (context.Database.CanConnect())
         {
-            Console.WriteLine("Connected to database");
+            
         }
         else
         {

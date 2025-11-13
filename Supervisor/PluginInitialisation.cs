@@ -58,7 +58,7 @@ public static class PluginInitialisation
                 isPluginInitialisedInDb = true; 
             }
 
-            Console.WriteLine($"Initialising plugin '{pluginKey}'...");
+            
 
             Task AddConfig(Func<PluginConfigDefinition, PluginConfigDefinition> conf)
             {
@@ -99,7 +99,7 @@ public static class PluginInitialisation
                 _context.SaveChanges();
                 RegisterPlugin(pluginKey);
             }
-            Console.WriteLine($"Plugin '{pluginKey}' initialised.");
+            
         }
     }
 }

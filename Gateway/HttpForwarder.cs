@@ -24,7 +24,7 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
                         ? new StreamContent(new MemoryStream())
                         : null
         };
-        Console.WriteLine($"Forwarding request to: {forwardedRequest.RequestUri}");
+        
 
         foreach (var header in request.Headers)
         {
@@ -75,7 +75,7 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
             catch (Exception ex)
             {
                 // Handle any exceptions that occur while writing the response
-                Console.WriteLine($"Error writing response: {ex.Message}");
+                
             }
         }
     }

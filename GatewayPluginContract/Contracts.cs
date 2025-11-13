@@ -4,6 +4,7 @@ using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic;
 
 namespace GatewayPluginContract;
 using DeferredFunc = Func<CancellationToken, Repositories, Task>;
@@ -131,6 +132,7 @@ public class ServiceContext
     public required IBackgroundQueue DeferredTasks { get; init; } 
     public required Repositories DataRepositories { get; init; }
     public required ServiceIdentity Identity { get; init; }
+    public required PluginCache Cache { get; init; }
 }
 
 public class ServiceIdentity
@@ -185,7 +187,7 @@ public interface IPluginServiceRegistrar
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
 }
 
-public interface IDataRegistrar
+public interface ITelemetryRegistrar
 {
     void RegisterDataCard<T>(DataCard<T> card) where T : class, Visualisation.ICardVisualisation;
     
@@ -212,6 +214,31 @@ public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisa
     public required Func<Repositories, TModel> GetData { get; init; }
 }
 
+public abstract class PluginCacheManager(StoreFactory stf)
+{
+    public abstract PluginCache GetCache(string pluginIdentifier);
+}
+
+public abstract class PluginCache(StoreFactory ctx, ICacheHandler ch)
+{
+    public abstract T? Get<T>(string key) where T : class;
+    public abstract Task Register<T>(string key, CachedData<T> data) where T : class;
+}
+
+public interface ICacheHandler
+{}
+
+public class CachedData<T> where T : class
+{
+    private T _data;
+
+    public T Data { get => Volatile.Read(ref _data);
+        set => Interlocked.Exchange(ref _data, value);
+    }
+    public required Func<DbContext, Task<T>> Fetch { get; set; }
+    public TimeSpan? InvalidationFrequency { get; init; }
+}
+
 public interface IPlugin
 {
     public PluginManifest GetManifest();
@@ -220,7 +247,7 @@ public interface IPlugin
 
     public void ConfigurePluginRegistrar(IPluginServiceRegistrar registrar);
     
-    public void ConfigureDataRegistrar(IDataRegistrar registrar);
+    public void ConfigureDataRegistries(PluginCache cache);
     
     public void InitialiseServiceConfiguration(DbContext context, Func<Func<PluginConfigDefinition, PluginConfigDefinition>, Task> addConfig);
 }
