@@ -13,6 +13,13 @@ public partial class Request
     public Guid RoutedTargetId { get; set; }
     public virtual Endpoint? Endpoint { get; set; }
     public Guid? EndpointId { get; set; }
+    
+    public Guid? InstanceId { get; set; }
+
+    public virtual Instance Instance {
+        get;
+        set;
+    }
     [Sortable]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
