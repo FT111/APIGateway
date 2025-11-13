@@ -19,12 +19,13 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public Identity.Identity Identity { get; init; } = identity;
     public PluginInitialisation.PluginConfigManager PluginInitManager { get; init; } = pluginInitManager!;
 
-    public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder().
-        WithConfigProvider(configurationsProvider)
+    public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder()
+        .WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
         .WithBackgroundQueue(localTaskQueue)
         .WithCacheProvider(cacheManager)
         .WithRouter(router)
+        .WithIdentity(identity)
         .Build();
 
     public TaskQueueHandler TaskQueueHandler { get; set; } = new TaskQueueHandler(store, localTaskQueue);

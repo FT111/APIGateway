@@ -23,6 +23,7 @@ public class RequestPipeline
     private readonly Repositories _repositories;
     private readonly CacheManager _cacheManager;
     private readonly IBackgroundQueue _backgroundQueue;
+    private readonly Identity.Identity _instanceIdentity;
     public RouteTrie Router;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
@@ -32,7 +33,8 @@ public class RequestPipeline
         Repositories repositories,
         IBackgroundQueue backgroundQueue,
         RouteTrie router,
-        CacheManager cacheManager)
+        CacheManager cacheManager,
+        Identity.Identity instanceIdentity)
     {
         _preProcessors = preProcessors.OrderBy(proc => proc.Order).ToList();
         _postProcessors = postProcessors.OrderBy(proc => proc.Order).ToList();
@@ -42,6 +44,7 @@ public class RequestPipeline
         _backgroundQueue = backgroundQueue;
         Router = router;
         _cacheManager = cacheManager;
+        _instanceIdentity = instanceIdentity;
     }
 
     public void SetForwarder( GatewayPluginContract.IRequestForwarder forwarder)
@@ -197,6 +200,7 @@ public class RequestPipeline
         
         context.LogRequest.SourceAddress = context.Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "Unknown";
         context.LogRequest.EndpointId = context.Endpoint?.Id ?? null;
+        context.LogRequest.InstanceId = _instanceIdentity.Id;
     }
 
     private void LogRequestAsync(GatewayPluginContract.RequestContext context)
@@ -222,64 +226,8 @@ public class RequestPipelineBuilder
     private CacheManager? _cacheManager = null;
     private Repositories? _repoFactory = null;
     private IConfigurationsProvider? _configManager = null;
+    private Identity.Identity? _instanceIdentity = null;
 
-    // public RequestPipelineBuilder WithForwarder( GatewayPluginContract.IRequestForwarder forwarder)
-    // {
-    //     _forwarder = forwarder;
-    //     return this;
-    // }
-    // public RequestPipelineBuilder AddPreProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
-    // {
-    //     AddProcessor(processor, ServiceTypes.PreProcessor, order);
-    //     return this;
-    // }
-    //
-    //
-    // public RequestPipelineBuilder AddPostProcessor(GatewayPluginContract.IRequestProcessor processor, uint? order = null)
-    // {
-    //     AddProcessor(processor, ServiceTypes.PostProcessor, order);
-    //     return this;
-    // }
-    //
-    // public RequestPipelineBuilder AddProcessor(GatewayPluginContract.IRequestProcessor processor, ServiceTypes type, uint? order = null)
-    // {
-    //     // Sets the order to the current count if not specified
-    //     if (order is null)
-    //     {
-    //         order = type switch
-    //         {
-    //             ServiceTypes.PreProcessor => (uint)_preProcessors.Count,
-    //             ServiceTypes.PostProcessor => (uint)_postProcessors.Count,
-    //             _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid pipeline type")
-    //         };
-    //     }
-    //
-    //     
-    //     var container = new PipeProcessorContainer
-    //     {
-    //         Processor = processor,
-    //         Order = order ?? 0, // Defaults to shut up Rider
-    //         IsEnabled = true
-    //     };
-    //     
-    //     // Check if a processor with the same order already exists
-    //     if ((type == ServiceTypes.PreProcessor ? _preProcessors : _postProcessors).Any(proc => proc.Order == order))
-    //     {
-    //         throw new InvalidOperationException($"A processor with order {order} already exists in the {type} pipeline.");
-    //     }
-    //
-    //     // Add the processor to the appropriate list
-    //     if (type == ServiceTypes.PreProcessor)
-    //     {
-    //         _preProcessors.Add(container);
-    //     }
-    //     else
-    //     {
-    //         _postProcessors.Add(container);
-    //     }
-    //
-    //     return this;
-    // }
     
     public RequestPipelineBuilder WithConfigProvider(IConfigurationsProvider manager)
     {
@@ -317,9 +265,16 @@ public class RequestPipelineBuilder
         return this;
     }
 
+    public RequestPipelineBuilder WithIdentity(Identity.Identity instanceIdentity)
+    {
+        _instanceIdentity = instanceIdentity;
+        return this;
+    }
+
     public RequestPipeline Build()
     {
-        if (_configManager == null || _repoFactory == null || _backgroundQueue == null || Router == null || _cacheManager == null)
+        if (_configManager == null || _repoFactory == null || _backgroundQueue == null || Router == null || _cacheManager == null
+            || _instanceIdentity == null)
         {
             throw new InvalidOperationException("All required components (config manager, store, background queue) must be set before building the pipeline.");
         }
@@ -328,6 +283,6 @@ public class RequestPipelineBuilder
         _preProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         _postProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
         
-        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue, Router, _cacheManager);
+        return new RequestPipeline(_forwarder, _preProcessors, _postProcessors, _configManager, _repoFactory, _backgroundQueue, Router, _cacheManager, _instanceIdentity);
     }
 }
