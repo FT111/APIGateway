@@ -38,12 +38,14 @@ public partial class EfDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https: //go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
     {
-        optionsBuilder.UseNpgsql(
-            o =>
-                o.MapEnum<ServiceFailurePolicies>("servicefailurepolicies"));
+        optionsBuilder.UseNpgsql(o =>
+            o.MapEnum<ServiceFailurePolicies>("servicefailurepolicies"));
+
+        // optionsBuilder.EnableSensitiveDataLogging();
+        // optionsBuilder.UseLoggerFactory(LoggerFactory.Create(builder => { builder.AddConsole(); }));
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -256,6 +258,12 @@ public partial class EfDbContext : DbContext
                 .HasColumnName("id");
             entity.Property(e => e.EndpointId).HasColumnName("endpoint_id").IsRequired(false);
             entity.Property(e => e.SourceAddress).HasColumnName("source_address");
+            entity.Property(e => e.InstanceId).HasColumnName("handler_instance_id");
+            
+            entity.HasOne(r => r.Instance).WithMany().
+                HasForeignKey(r => r.InstanceId)
+                .HasConstraintName("requests_instances_id_fk");
+            
             entity.HasOne(d => d.Endpoint)
                 .WithMany(p => p.Requests)
                 .HasForeignKey(d => d.EndpointId)
