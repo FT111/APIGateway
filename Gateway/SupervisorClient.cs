@@ -9,15 +9,29 @@ namespace Gateway;
 /// A client for the Gateway Supervisor.
 /// Communicates with the Supervisor, handling heartbeats, plugin updates, and manager commands.
 /// </summary>
-public class SupervisorClient(
-    SupervisorAdapter supervisor,
-    Gateway gateway
-    )
+public class SupervisorClient
 {
-    private readonly DbContext _context = gateway.Store.CreateStore().Context;
-    private readonly SupervisorAdapter _supervisor = supervisor ?? throw new ArgumentNullException(nameof(supervisor));
+    private readonly DbContext _context;
+    private readonly SupervisorAdapter _supervisor;
+    private readonly Dictionary<string, Func<SupervisorEvent, Task>> _customEventHandlers = new();
+    private readonly Gateway _gateway;
 
-    public async Task StartAsync()
+    /// <summary>
+    /// A client for the Gateway Supervisor.
+    /// Communicates with the Supervisor, handling heartbeats, plugin updates, and manager commands.
+    /// </summary>
+    public SupervisorClient(SupervisorAdapter supervisor,
+        Gateway gateway)
+    {
+        _gateway = gateway;
+        _context = gateway.Store.CreateStore().Context;
+        _supervisor = supervisor ?? throw new ArgumentNullException(nameof(supervisor));
+        _gateway.AddCustomSupervisorHandler = AddSupervisorEventHandler;
+        _gateway.SendSupervisorEvent = supervisor.SendEventAsync;
+    }
+
+
+    public async Task StartAsync() 
     {
         // Start the heartbeat loop
         var heartbeatInterval = TimeSpan.FromSeconds(30);
@@ -34,7 +48,7 @@ public class SupervisorClient(
         await _supervisor.SendEventAsync(new SupervisorEvent
         {
             Type = SupervisorEventType.Heartbeat,
-            Value = gateway.Identity.Id.ToString()
+            Value = _gateway.Identity.Id.ToString()
         });
     }
     private async Task StartHeartbeatLoopAsync(TimeSpan interval)
@@ -52,6 +66,12 @@ public class SupervisorClient(
             }
         }
     }
+
+    internal Task AddSupervisorEventHandler(string key, Func<SupervisorEvent, Task> handler)
+    {
+        _customEventHandlers.Add(key, handler);
+        return Task.CompletedTask;
+    }
     
     private async Task HandlePluginDeliveryUrlUpdatesAsync()
     {
@@ -59,7 +79,7 @@ public class SupervisorClient(
         {
             if (eventData.Value != null && eventData.Value.StartsWith("http"))
             {
-                gateway.PluginManager.PluginDeliveryUrl = eventData.Value;
+                _gateway.PluginManager.PluginDeliveryUrl = eventData.Value;
                 
             }
         });
@@ -70,7 +90,7 @@ public class SupervisorClient(
         await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (SupervisorEvent eventData) =>
         {
             await ProcessCommandAsync(eventData);
-        }, gateway.Identity.Id);
+        }, _gateway.Identity.Id);
         // // Subscribe to Supervisor commands
         // await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (eventData) =>
         // {
@@ -80,6 +100,14 @@ public class SupervisorClient(
     
     private async Task ProcessCommandAsync(SupervisorEvent eventData)
     {
+        if (eventData.Value == null) return;
+        
+        if (_customEventHandlers.TryGetValue(eventData.Value, out var func))
+        {
+            await func(eventData);
+            return;
+        }
+        
         switch (eventData.Value)
         {
             case "update_plugins":
@@ -103,11 +131,11 @@ public class SupervisorClient(
                 Environment.Exit(0);
                 break;
             case "update_routes":
-                await gateway.RebuildRouterAsync();
+                await _gateway.RebuildRouterAsync();
                 break;
             case "stop":
                 
-                var instance = await _context.Set<Instance>().Where(i => i.Id == gateway.Identity.Id).FirstOrDefaultAsync();
+                var instance = await _context.Set<Instance>().Where(i => i.Id == _gateway.Identity.Id).FirstOrDefaultAsync();
                 if (instance != null)
                 {
                     instance.Status = "offline";
@@ -127,9 +155,9 @@ public class SupervisorClient(
     private async Task<bool> HandlePluginDiscrepancies()
     {
         // Reload plugins to ensure the latest state - Then verify 
-        await gateway.PluginManager.LoadPluginsAsync("services/plugins");
+        await _gateway.PluginManager.LoadPluginsAsync("services/plugins");
         var pluginVerification =
-            await gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>().AsNoTracking()
+            await _gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>().AsNoTracking()
                 .AsQueryable());
 
         if (pluginVerification.IsValid)
@@ -142,22 +170,22 @@ public class SupervisorClient(
             foreach (var plugin in pluginVerification.Missing)
             {
                 
-                await gateway.PluginManager.DownloadAndInstallPluginAsync(plugin);
+                await _gateway.PluginManager.DownloadAndInstallPluginAsync(plugin);
             }
                     
             // Clean up old plugins
             foreach (var plugin in pluginVerification.Removed)
             {
-                await gateway.PluginManager.RemovePluginAsync(plugin);
+                await _gateway.PluginManager.RemovePluginAsync(plugin);
             }
                     
             // Load new plugins
-            await gateway.PluginManager.LoadPluginsAsync("services/plugins");
+            await _gateway.PluginManager.LoadPluginsAsync("services/plugins");
             // Initialise newly installed plugins
-            gateway.PluginInitManager.InitialiseFromPluginManager(gateway.PluginManager);
+            _gateway.PluginInitManager.InitialiseFromPluginManager(_gateway.PluginManager);
                     
             var finalVerification =
-                await gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>()
+                await _gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>()
                     .AsNoTracking().AsQueryable());
 
             if (!finalVerification.IsValid)

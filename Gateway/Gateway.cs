@@ -19,6 +19,9 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public Identity.Identity Identity { get; init; } = identity;
     public PluginInitialisation.PluginConfigManager PluginInitManager { get; init; } = pluginInitManager!;
 
+    internal Func<string, Func<SupervisorEvent, Task>, Task> AddCustomSupervisorHandler = null!;
+    internal Func<SupervisorEvent, Guid?, Guid?, Task> SendSupervisorEvent = null!;
+
     public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder()
         .WithConfigProvider(configurationsProvider)
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
