@@ -1,4 +1,6 @@
-﻿namespace GatewayPluginContract.Entities;
+﻿using System.Text.RegularExpressions;
+
+namespace GatewayPluginContract.Entities;
 
 public partial class Event : Entity
 {
@@ -9,6 +11,8 @@ public partial class Event : Entity
     public string? Description { get; set; }
 
     public Guid? Endpointid { get; set; }
+    public Guid? RequestId { get; set; }
+    public Guid? GroupId { get; set; }
 
     public string? ServiceIdentifier { get; set; }
 
@@ -23,4 +27,6 @@ public partial class Event : Entity
     public string? MetaData { get; set; }
 
     public virtual Endpoint? Endpoint { get; set; }
+    public virtual Request? Request { get; set; }
+    public virtual RequestGroup? Group { get; set; }
 }

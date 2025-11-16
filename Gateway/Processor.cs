@@ -125,7 +125,6 @@ public class RequestPipeline
 
             foreach (var processor in _preProcessors)
             {
-                
                 await UseProcessor(processor, context);
                 await HandleContextRequests(context, httpContext);
             }
@@ -138,7 +137,6 @@ public class RequestPipeline
 
             foreach (var processor in _postProcessors)
             {
-                
                 await UseProcessor(processor, context);
                 await HandleContextRequests(context, httpContext);
             }
