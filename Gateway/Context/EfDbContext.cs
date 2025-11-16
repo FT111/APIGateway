@@ -128,6 +128,10 @@ public partial class EfDbContext : DbContext
             
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e=> e.Title).HasColumnName("title");
+
+            entity.HasMany(e => e.Requests)
+                .WithMany(e => e.Groups)
+                .UsingEntity<RequestGroupMembership>();
         });
 
         

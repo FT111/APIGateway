@@ -159,14 +159,14 @@ public class EfStoreFactory(IConfiguration configuration) : StoreFactory(configu
             throw new InvalidOperationException("Failed to create DbContext.");
         }
         
-        if (context.Database.CanConnect())
-        {
-            
-        }
-        else
-        {
-            throw new InvalidOperationException("Failed to connect to the database.");
-        }
+        // if (context.Database.CanConnect())
+        // {
+        //     
+        // }
+        // else
+        // {
+        //     throw new InvalidOperationException("Failed to connect to the database.");
+        // }
 
         return new EfCorePostgresStore()
         {

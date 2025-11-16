@@ -7,4 +7,6 @@ public partial class RequestGroup
     public string? Description { get; set; }
     public required string Type { get; set; }
     public string? SourcePlugin { get; set; }
+
+    public virtual ICollection<Request> Requests { get; set; } = new List<Request>();
 }
