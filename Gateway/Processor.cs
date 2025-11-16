@@ -112,8 +112,8 @@ public class RequestPipeline
 
     private void UsePipeConfig(PipeConfiguration config)
     {
-        _preProcessors = config.PreProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
-        _postProcessors = config.PostProcessors.Where(proc => proc.IsEnabled).OrderBy(proc => proc.Order).ToList();
+        _preProcessors = config.PreProcessors;
+        _postProcessors = config.PostProcessors;
         _forwarder = config.Forwarder ?? throw new InvalidOperationException("Forwarder cannot be null in configuration.");
     }
 

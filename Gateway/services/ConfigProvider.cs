@@ -87,6 +87,12 @@ public class ConfigProvider : IConfigurationsProvider
                 
             }
         }
+        
+        // Process them to be pipe-ready
+        pipe.PreProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
+        pipe.PostProcessors.Sort((a, b) => a.Order.CompareTo(b.Order));
+        pipe.PreProcessors = pipe.PreProcessors.Where(proc => proc.IsEnabled).ToList();
+        pipe.PostProcessors = pipe.PostProcessors.Where(proc => proc.IsEnabled).ToList();
 
         return pipe;
     }
