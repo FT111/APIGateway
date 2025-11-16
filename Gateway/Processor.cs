@@ -117,7 +117,7 @@ public class RequestPipeline
         _forwarder = config.Forwarder ?? throw new InvalidOperationException("Forwarder cannot be null in configuration.");
     }
 
-    public async Task ProcessAsync(GatewayPluginContract.RequestContext context, HttpContext httpContext)
+    public async Task ProcessAsync(RequestContext context, HttpContext httpContext)
     {
         try
         { 

@@ -6,48 +6,23 @@ using GatewayPluginContract.Entities;
 namespace Gateway.routes;
 
 
-public static class Proxy
+public class Proxy
 {
-    public static async Task Init(this WebApplication app, Gateway gateway)
+    public async Task Init(WebApplication app, Gateway gateway)
     {
-        // var storeProvider = new EfStoreFactory(app.Configuration);
-        // var store = storeProvider.CreateStore();
-        // var repoFactory = store.GetRepoFactory();
         
         const string prefix = "/";
         var api = app.MapGroup(prefix)
             .WithOpenApi();
-
-        // var backgroundQueue = new TaskQueue();
-        // var queueHandler = new TaskQueueHandler(storeProvider, backgroundQueue);
-        // queueHandler.ExecuteAsync(CancellationToken.None).ConfigureAwait(false);
-        //
-        // var pluginManager = new PluginManager();
-        // await pluginManager.LoadPluginsAsync(app.Configuration["PluginDirectory"] ?? "service/plugins");
-        //
-        // var supervisorConnection = new RabbitSupervisorAdapter(app.Configuration);
-        // var supervisorClient = new SupervisorClient(supervisorConnection, app, pluginManager);
-        // supervisorClient.StartAsync().ConfigureAwait(false);
-        //
-        // var serviceConfigProvider = new ConfigProvider();
-        // await serviceConfigProvider.InitialiseAsync(pluginManager, repoFactory);
         
-        // var requestPipeline = new RequestPipelineBuilder()
-        //     .WithConfigProvider(serviceConfigProvider)
-        //     .WithRepoProvider(repoFactory)
-        //     .WithBackgroundQueue(backgroundQueue)
-        //     .Build();
         
-        api.MapGet("/", () => Results.Ok("API Gateway is running!"))
-            .WithName("ApiRoot")
-            .WithTags("Api")
-            .Produces(StatusCodes.Status200OK);
-        api.Map("/{**path}", (HttpContext context, string path) =>
+        api.Map("/{**path}", (HttpContext context, string path, ILogger<Proxy> logger) =>
                 {
                     var requestContext = new GatewayPluginContract.RequestContext
                     {
                         Request = context.Request,
                         Response = context.Response,
+                        Logger = logger,
                         LogRequest = new Request()
                         {
                             Id = Guid.NewGuid()

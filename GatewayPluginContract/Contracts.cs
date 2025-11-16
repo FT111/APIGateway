@@ -4,6 +4,7 @@ using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
 
 namespace GatewayPluginContract;
@@ -95,6 +96,7 @@ public class RequestContext
 {
     public required HttpRequest Request { get; set; }
     public required HttpResponse Response { get; set; }
+    public required ILogger Logger { get; init; }
     public bool IsBlocked { get; set; } = false;
     public bool IsRestartRequested { get; set; } = false;
     public bool IsForwardingFailed { get; set; } = false;
