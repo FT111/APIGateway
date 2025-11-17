@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
@@ -59,38 +60,49 @@ public class RequestPipeline
             DeferredTasks = _backgroundQueue,
             DataRepositories = _repositories,
             Identity = container.Processor.Identity,
-            Cache = _cacheManager.GetCache(container.Processor.Identity.OriginManifest.Name)
+            Cache = _cacheManager.GetCache(container.Processor.Identity.OriginManifest.Name),
         };
-        try
+
+        using (context.TraceActivity = context.TraceActivity.Source.StartActivity($"Processing request: {container.Identifier}"))
         {
-            await container.Processor.Instance.ProcessAsync(context, tools);
-        }
-        catch (Exception ex)
-        {
-            // Handle processor failure based on its failure policy
-            switch (container.FailurePolicy)
+            try
             {
-                case ServiceFailurePolicies.Ignore:
-                    
-                    break;
-                case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
-                    
-                    context.IsRestartRequested = true;
-                    break;
-                case ServiceFailurePolicies.RetryThenBlock:
-                    
-                    context.IsBlocked = true;
-                    break;
-                case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
-                    
-                    context.IsRestartRequested = true;
-                    break;
-                case ServiceFailurePolicies.Block:
-                    
-                    context.IsBlocked = true;
-                    break;
-                default:
-                    break;
+                await container.Processor.Instance.ProcessAsync(context, tools);
+                context.TraceActivity.AddEvent(
+                    new ActivityEvent($"Processor {container.Identifier} executed successfully"));
+
+
+            }
+            catch (Exception ex)
+            {
+                // Handle processor failure based on its failure policy
+                switch (container.FailurePolicy)
+                {
+                    case ServiceFailurePolicies.Ignore:
+                        context.TraceActivity.AddEvent(new ActivityEvent($"Processor {container.Identifier} failed (ignoring) with exception: {ex.Message}"));
+                        break;
+                    case ServiceFailurePolicies.RetryThenBlock when context.RestartCount < 3:
+                        context.TraceActivity.AddEvent(new ActivityEvent($"Processor {container.Identifier} failed (retrying) with exception: {ex.Message}"));
+                        context.IsRestartRequested = true;
+                        break;
+                    case ServiceFailurePolicies.RetryThenBlock:
+                        context.TraceActivity.AddEvent(new ActivityEvent($"Processor {container.Identifier} failed (retrying then blocking) with exception: {ex.Message}"));
+
+                        context.IsBlocked = true;
+                        break;
+                    case ServiceFailurePolicies.RetryThenIgnore when context.RestartCount < 3:
+                        context.TraceActivity.AddEvent(new ActivityEvent($"Processor {container.Identifier} failed (retrying then ignoring) with exception: {ex.Message}"));
+
+                        context.IsRestartRequested = true;
+                        break;
+                    case ServiceFailurePolicies.Block:
+                        context.TraceActivity.AddEvent(new ActivityEvent($"Processor {container.Identifier} failed (blocking) with exception: {ex.Message}"));
+
+                        context.IsBlocked = true;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -105,6 +117,7 @@ public class RequestPipeline
         {
             
             context.RestartCount++;
+            context.TraceActivity.AddEvent(new ActivityEvent($"Pipeline processing restarted due to request."));
             await ProcessAsync(context, httpContext);
             throw new Exceptions.PipelineEndedException("Pipeline processing gracefully restarted recursively due to request.");
         }
@@ -120,7 +133,11 @@ public class RequestPipeline
     public async Task ProcessAsync(RequestContext context, HttpContext httpContext)
     {
         try
-        { 
+        {
+            // Start an activity if OpenTelemetry for web framework is not enabled
+            Activity.Current ??= new Activity("Gateway Pipeline").Start();
+            
+            Activity.Current.AddEvent(new ActivityEvent("Starting pipeline processing"));
             await SetupPipeline(context);
 
             foreach (var processor in _preProcessors)
@@ -133,7 +150,13 @@ public class RequestPipeline
             {
                 throw new InvalidOperationException("Forwarder is not set. Cannot process request without a forwarder.");
             }
-            await _forwarder.ForwardAsync(context);
+
+            using (context.TraceActivity = context.TraceActivity.Source.StartActivity($"Forwarding Request to {context.Target.Host} ({context.Target.Id})"))
+            {
+                context.TraceActivity?.AddTag("target.url", $"{context.Target.Schema}{context.Target.Host}{context.Target.BasePath}");
+                context.TraceActivity?.AddTag("target.id", context.Target.Id.ToString());
+                await _forwarder.ForwardAsync(context);
+            }
 
             foreach (var processor in _postProcessors)
             {
@@ -143,6 +166,7 @@ public class RequestPipeline
 
             if (context.IsForwardingFailed)
             {
+                context.TraceActivity?.AddEvent(new ActivityEvent("Forwarding failed. Setting status code to 502 Bad Gateway."));
                 context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
             }
         }
@@ -150,8 +174,9 @@ public class RequestPipeline
         {
             
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            context.TraceActivity?.AddEvent(new ActivityEvent($"Pipeline processing failed with exception: {e.Message}"));
             context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
         }
         LogRequestAsync(context);

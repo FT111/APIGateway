@@ -1,7 +1,9 @@
 
 using Gateway.routes;
 using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace Gateway
 {
@@ -25,7 +27,16 @@ namespace Gateway
                     {
                         ["service.instance.id"] = builtGateway.Gateway.Identity.Id.ToString()
                     }
-                ));
+                ))
+                .WithTracing(tracing => tracing
+                    .AddSource("Gateway")
+                    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(builder.Environment.ApplicationName))
+                    .AddZipkinExporter(z => z.Endpoint = new Uri("http://clusterhost:9411/api/v2/spans"))
+                    .AddAspNetCoreInstrumentation(asp => asp.RecordException = true)
+                );
+                // .WithMetrics(metrics =>
+                //     metrics.AddOtlpExporter(b => b.Endpoint = new Uri("http://clusterhost:9411/api/v2/metrics"))
+                // );
 
             var app = builder.Build();
 

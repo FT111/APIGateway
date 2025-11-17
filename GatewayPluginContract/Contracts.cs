@@ -1,4 +1,5 @@
-﻿using System.IO.Pipelines;
+﻿using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Linq.Expressions;
 using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
@@ -97,6 +98,7 @@ public class RequestContext
     public required HttpRequest Request { get; set; }
     public required HttpResponse Response { get; set; }
     public required ILogger Logger { get; init; }
+    public Activity TraceActivity { get; set; } = Activity.Current;
     public bool IsBlocked { get; set; } = false;
     public bool IsRestartRequested { get; set; } = false;
     public bool IsForwardingFailed { get; set; } = false;

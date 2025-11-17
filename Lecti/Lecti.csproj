@@ -15,4 +15,8 @@
       <None Remove="Lecti.deps.json" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.14.0" />
+    </ItemGroup>
+
 </Project>

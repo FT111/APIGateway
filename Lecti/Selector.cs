@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 
@@ -8,6 +9,7 @@ public class Selector : IRequestProcessor
     public async Task ProcessAsync(RequestContext context, ServiceContext stk)
     {
         // Checks if the IP has already been given an A/B variation
+        Target assignedTarget;
         var clientIp = context.Request.HttpContext.Connection.RemoteIpAddress.MapToIPv4();
         try
         {
@@ -17,7 +19,7 @@ public class Selector : IRequestProcessor
                 dt.Key == clientIp.ToString());
             if (existingRecord == null) throw new KeyNotFoundException();
 
-            var assignedTarget = stk.Cache.Get<List<Target>>("storedTargets")?.FirstOrDefault(t => t.Id == Guid.Parse(existingRecord.Value));
+            assignedTarget = stk.Cache.Get<List<Target>>("storedTargets")?.FirstOrDefault(t => t.Id == Guid.Parse(existingRecord.Value));
             context.Target = assignedTarget ??
                              throw new KeyNotFoundException("Assigned target not found in the database.");
         }
@@ -25,17 +27,18 @@ public class Selector : IRequestProcessor
         {
             // If not, randomly assign one of the variations
             var random = new Random();
-
             List<string> availableVariations =
                 System.Text.Json.JsonSerializer.Deserialize<List<string>>(
                     context.PluginConfiguration[stk.Identity.OriginManifest.Name]["downstream_variants"]) ??
                 throw new InvalidOperationException("No downstream variations configured.");
             var variation = random.Next(0, availableVariations.Count);
 
-            var assignedTarget = await stk.DataRepositories.Context.Set<Target>()
+            assignedTarget = await stk.DataRepositories.Context.Set<Target>()
                 .FindAsync(Guid.Parse(availableVariations[variation]));
             context.Target = assignedTarget ??
                              throw new KeyNotFoundException("Assigned target not found in the database.");
+            
+            context.TraceActivity.AddEvent(new ActivityEvent("Assigning new variation"));
 
             // Store the assigned variation in the scoped store
             async Task Task(CancellationToken cancellationToken, Repositories dataRepos)

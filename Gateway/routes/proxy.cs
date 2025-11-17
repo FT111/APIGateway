@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Gateway.services;
 using GatewayPluginContract;
@@ -14,10 +15,11 @@ public class Proxy
         const string prefix = "/";
         var api = app.MapGroup(prefix)
             .WithOpenApi();
-        
-        
+
+
         api.Map("/{**path}", (HttpContext context, string path, ILogger<Proxy> logger) =>
                 {
+                    Activity.Current?.AddEvent(new ActivityEvent("Execution started"));
                     var requestContext = new GatewayPluginContract.RequestContext
                     {
                         Request = context.Request,

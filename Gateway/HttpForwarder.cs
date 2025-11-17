@@ -7,31 +7,36 @@ public class HttpRequestForwarder : GatewayPluginContract.IRequestForwarder
     
     public async Task ForwardAsync(GatewayPluginContract.RequestContext context)
     {
-        var request = context.Request;
+        var forwardedResponse = new HttpResponseMessage();
         var response = context.Response;
-        var amendedPath = request.Path.ToString().Remove(0, context.GatewayPathPrefix.Length);
-        var uriString = $"{context.Target.Schema}{context.Target.Host}{context.Target.BasePath ?? "/"}{amendedPath}";
-        
-        var forwardedRequest = new HttpRequestMessage
+        HttpRequestMessage forwardedRequest;
+        using (context.TraceActivity = context.TraceActivity.Source.StartActivity("Assembling Forwarded Request"))
         {
-            Method = new HttpMethod(request.Method),
-            RequestUri = new Uri(uriString),
-            Content = request.HasFormContentType
-                ? new FormUrlEncodedContent(request.Form.ToDictionary(k => k.Key, v => v.Value.ToString()))
-                : request.Body.CanSeek
-                    ? new StreamContent(request.Body)
-                    : request.Body is not null
-                        ? new StreamContent(new MemoryStream())
-                        : null
-        };
-        
+            var request = context.Request;
+            var amendedPath = request.Path.ToString().Remove(0, context.GatewayPathPrefix.Length);
+            var uriString =
+                $"{context.Target.Schema}{context.Target.Host}{context.Target.BasePath ?? "/"}{amendedPath}";
 
-        foreach (var header in request.Headers)
-        {
-            forwardedRequest.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+            forwardedRequest = new HttpRequestMessage
+            {
+                Method = new HttpMethod(request.Method),
+                RequestUri = new Uri(uriString),
+                Content = request.HasFormContentType
+                    ? new FormUrlEncodedContent(request.Form.ToDictionary(k => k.Key, v => v.Value.ToString()))
+                    : request.Body.CanSeek
+                        ? new StreamContent(request.Body)
+                        : request.Body is not null
+                            ? new StreamContent(new MemoryStream())
+                            : null
+            };
+
+
+            foreach (var header in request.Headers)
+            {
+                forwardedRequest.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+            }
         }
 
-        var forwardedResponse = new HttpResponseMessage();
         try 
         {
             // Forward the request to the target URL
