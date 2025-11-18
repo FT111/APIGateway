@@ -31,7 +31,6 @@ public class Proxy
                         },
                         GatewayPathPrefix = prefix
                     };
-                    
                     return gateway.Pipe.ProcessAsync(requestContext, context);
                 }
             ).WithName("ApiForwarder")

@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <UserSecretsId>ec3048b8-6d4b-4265-b3cb-05fa64cb67f0</UserSecretsId>
+        <PublishReadyToRun>true</PublishReadyToRun>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,7 +24,9 @@
         <PackageReference Include="OpenTelemetry" Version="1.14.0" />
         <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.14.0" />
         <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.14.0" />
+        <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.14.0" />
         <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.14.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.14.0" />
         <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
     </ItemGroup>
 
