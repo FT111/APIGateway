@@ -18,6 +18,7 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public CacheManager CacheManager { get; set; } = cacheManager;
     public Identity.Identity Identity { get; init; } = identity;
     public PluginInitialisation.PluginConfigManager PluginInitManager { get; init; } = pluginInitManager!;
+    public ILogger? Logger { get; set; }
 
     internal Func<string, Func<SupervisorEvent, Task>, Task> AddCustomSupervisorHandler = null!;
     internal Func<SupervisorEvent, Guid?, Guid?, Task> SendSupervisorEvent = null!;
@@ -50,6 +51,12 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
         var structuredGlobalConfs = ConfigurationsProvider.ConvertPluginConfigsToDict(globalPluginConfigs);
         await deployments.LoadAsync();
         Pipe.Router = RouterFactory.BuildRouteTrie(deployments.ToList(), structuredGlobalConfs, ConfigurationsProvider);
+    }
+    
+    public void AddLogger(ILogger logger)
+    {
+        Logger = logger;
+        TaskQueueHandler.AddLogger(logger);
     }
 }
 
@@ -142,7 +149,7 @@ public class GatewayBuilder(IConfiguration configuration)
     {
         ConfigurationsProvider = configurationsProvider ?? throw new ArgumentNullException(nameof(configurationsProvider));
     }
-    
+
     public async Task LoadPluginServicesAsync(string pluginDirectory)
     {
         await PluginManager.LoadPluginsAsync(pluginDirectory);

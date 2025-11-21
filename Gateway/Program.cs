@@ -37,8 +37,10 @@ namespace Gateway
                 // .WithMetrics(metrics =>
                 //     metrics.AddOtlpExporter(b => b.Endpoint = new Uri("http://clusterhost:9411/api/v2/metrics"))
                 // );
+                
 
             var app = builder.Build();
+            builtGateway.Gateway.AddLogger(app.Logger);
 
             if (app.Environment.IsDevelopment())
             {
