@@ -126,8 +126,8 @@ public class RouteNode
 
 public interface IBackgroundQueue : IService
 {
-    void QueueTask(DeferredFunc task);
-    Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
+    void QueueTask(Func<CancellationToken, Repositories, Activity, ILogger, Task> task);
+    Task<Func<CancellationToken, Repositories, Activity, ILogger, Task>> DequeueAsync(CancellationToken cancellationToken);
 }
 
 

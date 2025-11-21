@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace Lecti;
 
@@ -30,7 +32,7 @@ public class Checker : IRequestProcessor
             var random = new Random();
             var newVariation = availableVariations[random.Next(0, availableVariations.Count)];
 
-            async Task Task(CancellationToken cancellationToken, Repositories dataRepos)
+            async Task Task(CancellationToken cancellationToken, Repositories dataRepos, Activity activity, ILogger logger)
             {
                 var data = new PluginData
                 {

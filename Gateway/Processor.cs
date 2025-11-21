@@ -230,7 +230,7 @@ public class RequestPipeline
     {
         context.LogRequest.RoutedTargetId = context.Target.Id;
         context.LogRequest.HttpStatus = context.Response.StatusCode;
-        async Task LogRequest(CancellationToken token, Repositories repositories)
+        async Task LogRequest(CancellationToken token, Repositories repositories, Activity activity, ILogger logger)
         {
             await repositories.GetRepo<Request>().AddAsync(context.LogRequest);
         }

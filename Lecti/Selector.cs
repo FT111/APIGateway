@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace Lecti;
 
@@ -48,7 +49,7 @@ public class Selector : IRequestProcessor
             context.TraceActivity.AddEvent(new ActivityEvent("Assigned variation: Target " + assignedTarget.Id));
 
             // Store the assigned variation in the scoped store
-            async Task Task(CancellationToken cancellationToken, Repositories dataRepos)
+            async Task Task(CancellationToken cancellationToken, Repositories dataRepos, Activity activity, ILogger logger)
 
             {
                 var data = new PluginData

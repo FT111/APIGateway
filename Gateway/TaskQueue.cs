@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using Gateway.services;
 using GatewayPluginContract;
 namespace Gateway;
 
 public class TaskQueueHandler(StoreFactory storeProvider, LocalTaskQueue localTaskQueue)
 {
+    private ILogger? _logger;
     internal async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -12,7 +14,10 @@ public class TaskQueueHandler(StoreFactory storeProvider, LocalTaskQueue localTa
             {
                 var task = await localTaskQueue.DequeueAsync(stoppingToken);
                 var dataRepos = storeProvider.CreateStore().GetRepoFactory();
-                await task(stoppingToken, dataRepos);
+                using (Activity.Current = new Activity("BackgroundTaskExecution").Start())
+                {
+                    await task(stoppingToken, dataRepos, Activity.Current, _logger);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -25,5 +30,10 @@ public class TaskQueueHandler(StoreFactory storeProvider, LocalTaskQueue localTa
                 
             }
         }
+    }
+
+    public void AddLogger(ILogger logger)
+    {
+        _logger = logger;
     }
 }
