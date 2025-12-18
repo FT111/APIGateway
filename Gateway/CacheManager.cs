@@ -92,7 +92,6 @@ public class CacheHandler(StoreFactory ctx) : ICacheHandler
     public void Register<T>(CachedData<T> item, string pluginKey,SemaphoreSlim sem) where T : class
     {
         var newEntry = new CacheEntry<T>(item, sem, pluginKey);
-        // TODO Fix this being thrown as an invalid cast
         _newItems.Enqueue(newEntry ?? throw new InvalidOperationException("Type mismatch in cache entry."));
     }
     
