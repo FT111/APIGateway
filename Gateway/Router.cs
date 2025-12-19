@@ -1,6 +1,7 @@
 using Gateway.services;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using Microsoft.EntityFrameworkCore;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
 
@@ -69,7 +70,16 @@ namespace Gateway
             }
             return fullPath;
         }
-        public static RouteTrie BuildRouteTrie(IEnumerable<Deployment> deployments, Dictionary<string, Dictionary<string, string>> globalPluginConfigs, IConfigurationsProvider configProvider) {
+        public static async Task<RouteTrie> BuildRouteTrie(DbContext context, IConfigurationsProvider configProvider){
+            var deployments = context.Set<Deployment>().Include(d => d.Target)
+                .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
+                .ThenInclude(p => p.PipeServices)
+                .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
+                .ThenInclude(p => p.PluginConfigs);
+            var globalPluginConfigs = context.Set<PluginConfig>().Where(pc => pc.PipeId == null).ToList();
+            var structuredGlobalConfs = configProvider.ConvertPluginConfigsToDict(globalPluginConfigs);
+            await deployments.LoadAsync();
+            
             var trie = new RouteTrie();
 
             foreach (var deployment in deployments)
@@ -79,7 +89,7 @@ namespace Gateway
                     var fullPath = FindFullEndpointPath(endpoint);
                     try
                     {
-                        var endpointCollatedConfig = endpoint.Pipe!=null ? CollateEndpointPluginConfigs(configProvider.ConvertPluginConfigsToDict(endpoint.Pipe.PluginConfigs), globalPluginConfigs) : globalPluginConfigs;
+                        var endpointCollatedConfig = endpoint.Pipe!=null ? CollateEndpointPluginConfigs(configProvider.ConvertPluginConfigsToDict(endpoint.Pipe.PluginConfigs), structuredGlobalConfs) : structuredGlobalConfs ;
                         trie.Insert(fullPath, endpoint, endpointCollatedConfig);
                     }
                     catch (InvalidOperationException ex)

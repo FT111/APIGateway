@@ -1,9 +1,11 @@
-﻿using System.IO.Pipelines;
+﻿using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Linq.Expressions;
 using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
 
 namespace GatewayPluginContract;
@@ -95,6 +97,8 @@ public class RequestContext
 {
     public required HttpRequest Request { get; set; }
     public required HttpResponse Response { get; set; }
+    public required ILogger Logger { get; init; }
+    public Activity TraceActivity { get; set; } = Activity.Current ?? new Activity("Gateway Pipeline");
     public bool IsBlocked { get; set; } = false;
     public bool IsRestartRequested { get; set; } = false;
     public bool IsForwardingFailed { get; set; } = false;
@@ -122,8 +126,8 @@ public class RouteNode
 
 public interface IBackgroundQueue : IService
 {
-    void QueueTask(DeferredFunc task);
-    Task<DeferredFunc> DequeueAsync(CancellationToken cancellationToken = default);
+    void QueueTask(Func<CancellationToken, Repositories, Activity, ILogger, Task> task);
+    Task<Func<CancellationToken, Repositories, Activity, ILogger, Task>> DequeueAsync(CancellationToken cancellationToken);
 }
 
 

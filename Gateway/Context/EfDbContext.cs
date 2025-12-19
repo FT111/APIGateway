@@ -95,6 +95,8 @@ public partial class EfDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Endpointid).HasColumnName("endpoint_id");
+            entity.Property(e => e.RequestId).HasColumnName("request_id");
+            entity.Property(e=> e.GroupId).HasColumnName("group_id");
             entity.Property(e => e.IsDismissed)
                 .HasDefaultValue(false)
                 .HasColumnName("is_dismissed");
@@ -110,6 +112,28 @@ public partial class EfDbContext : DbContext
                 .HasForeignKey(d => d.Endpointid)
                 .HasConstraintName("events_endpoints_id_fk");
         });
+
+        modelBuilder.Entity<RequestGroupMembership>(entity =>
+        {
+            entity.ToTable("req_group_rels");
+                entity.HasKey(e => new { e.GroupId, e.RequestId }).HasName("req_group_rels_pk");
+                entity.Property(e => e.GroupId).HasColumnName("group_id").IsRequired();
+                entity.Property(e => e.RequestId).HasColumnName("request_id").IsRequired();
+            });
+
+        modelBuilder.Entity<RequestGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("request_groups_pk");
+            entity.ToTable("request_groups");
+            
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e=> e.Title).HasColumnName("title");
+
+            entity.HasMany(e => e.Requests)
+                .WithMany(e => e.Groups)
+                .UsingEntity<RequestGroupMembership>();
+        });
+
         
         modelBuilder.Entity<Plugin>(entity =>
         {

@@ -22,4 +22,6 @@ public partial class Request
     }
     [Sortable]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    public virtual ICollection<RequestGroup> Groups { get; set; } = new List<RequestGroup>();
 }

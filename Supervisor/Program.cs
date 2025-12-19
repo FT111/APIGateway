@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using Supervisor.auth;
 using Supervisor.routes;
 using Newtonsoft.Json;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Resources;
 using Supervisor.services;
 using Instances = Supervisor.services.Instances;
 
@@ -18,7 +20,13 @@ public static class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        
         builder.Services.AddOpenApi();
+        
+        builder.Logging.ClearProviders();
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(r => r.AddService(builder.Environment.ApplicationName))
+            .WithLogging(logging => logging.AddConsoleExporter());
 
         CoreServiceLoader.LoadFromConfiguration(builder);
         builder.Services.ConfigureHttpJsonOptions(options =>
