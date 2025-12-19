@@ -8,7 +8,7 @@ namespace Gateway;
 
 // Main director
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
-    Identity.Identity identity, RouteTrie router, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager)
+    Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager)
 {
     public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
     public StoreFactory Store { get; } = store;
@@ -28,7 +28,7 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
         .WithRepoProvider(store.CreateStore().GetRepoFactory())
         .WithBackgroundQueue(localTaskQueue)
         .WithCacheProvider(cacheManager)
-        .WithRouter(router)
+        .WithRouterFactory(RouterFactory.BuildRouteTrie)
         .WithIdentity(identity)
         .Build();
 
@@ -41,16 +41,7 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     
     public async Task RebuildRouterAsync()
     {
-        var context = Store.CreateStore().Context;
-        var deployments = context.Set<Deployment>().Include(d => d.Target)
-            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
-            .ThenInclude(p => p.PipeServices)
-            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
-            .ThenInclude(p => p.PluginConfigs);
-        var globalPluginConfigs = context.Set<PluginConfig>().Where(pc => pc.PipeId == null).ToList();
-        var structuredGlobalConfs = ConfigurationsProvider.ConvertPluginConfigsToDict(globalPluginConfigs);
-        await deployments.LoadAsync();
-        Pipe.Router = RouterFactory.BuildRouteTrie(deployments.ToList(), structuredGlobalConfs, ConfigurationsProvider);
+        Pipe.Router = await RouterFactory.BuildRouteTrie(store.CreateStore().Context, ConfigurationsProvider);
     }
     
     public void AddLogger(ILogger logger)
@@ -80,9 +71,8 @@ public class GatewayBuilder(IConfiguration configuration)
     public async Task<GatewayBuild> Build()
     {
         var identity = new Identity.Identity(_configuration);
-        var router = WithRouter();
         var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider,
-            PluginManager, identity, router, PluginInitManager, CacheManager);
+            PluginManager, identity, PluginInitManager, CacheManager);
         gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));
@@ -110,25 +100,6 @@ public class GatewayBuilder(IConfiguration configuration)
         );
     }
 
-    private RouteTrie WithRouter()
-    {
-        if (StoreFactory == null)
-        {
-            throw new InvalidOperationException("StoreFactory must be set before building the router.");
-        }
-
-        var dbContext = StoreFactory.CreateStore().Context;
-        var deployments = dbContext.Set<Deployment>().Include(d => d.Target)
-            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
-            .ThenInclude(p => p.PipeServices)
-            .Include(d => d.Endpoints).ThenInclude(e => e.Parent).ThenInclude(e => e.Pipe)
-            .ThenInclude(p => p.PluginConfigs);
-        var globalPluginConfigs = dbContext.Set<PluginConfig>().Where(pc => pc.PipeId == null).ToList();
-        var structuredGlobalConfs = ConfigurationsProvider.ConvertPluginConfigsToDict(globalPluginConfigs);
-        deployments.Load();
-        return RouterFactory.BuildRouteTrie(deployments.ToList(), structuredGlobalConfs, this.ConfigurationsProvider);
-        
-    }
     public void WithStoreProvider(StoreFactory storeFactory)
     {
         StoreFactory = storeFactory;

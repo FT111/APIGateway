@@ -265,9 +265,9 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithRouter(RouteTrie router)
+    public RequestPipelineBuilder WithRouterFactory(Func<DbContext, IConfigurationsProvider, Task<RouteTrie>> routerFactory)
     {
-        Router = router;
+        Router = routerFactory.Invoke(_repoFactory!.Context, _configManager!).Result;
         return this;
     }
     
