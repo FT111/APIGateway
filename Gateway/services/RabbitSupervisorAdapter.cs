@@ -37,14 +37,13 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         // Declare exchanges
         _exchangeNames = new Dictionary<SupervisorEventType, string>
         {
-            [SupervisorEventType.Command] = configuration["Queues:Commands"] ?? "commands",
             [SupervisorEventType.Event] = configuration["Queues:Events"] ?? "events",
             [SupervisorEventType.Heartbeat] = configuration["Queues:Heartbeats"] ?? "heartbeats",
             [SupervisorEventType.Request] = configuration["Queues:Requests"] ?? "requests",
             [SupervisorEventType.Response] = configuration["Queues:Responses"] ?? "responses",
-            [SupervisorEventType.DeliveryUrl] = configuration["Queues:DeliveryUrls"] ?? "delivery_urls"
-
+            [SupervisorEventType.DeliveryUrl] = configuration["Queues:DeliveryUrls"] ?? "delivery_urls",
         };
+
 
         // Bind exchanges
         foreach (var exchangeName in _exchangeNames.Values)

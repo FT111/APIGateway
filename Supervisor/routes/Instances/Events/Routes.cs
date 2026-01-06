@@ -16,12 +16,12 @@ public class Routes
             {
                 try
                 {
-                    if (e.Value == "update_plugins")
+                    if (e.Type == nameof(SupervisorEventType.UpdatePlugins))
                     {
                         await mqHandler.SendEventAsync(new SupervisorEvent
                         {
                             Type = SupervisorEventType.DeliveryUrl,
-                            Value = packages.GetPluginStaticUrl()  
+                            Value = packages.GetPluginStaticUrl()
                         });
                         packages.PackagePluginsAsync();
                         await Task.Delay(50);

@@ -51,8 +51,8 @@ public static class Instances
                 Instances.Remove(instanceId);
                 await Messages.SendEventAsync(new SupervisorEvent
                 {
-                    Type = SupervisorEventType.Command,
-                    Value = $"stop"
+                    Type = SupervisorEventType.Stop,
+                    Value = instanceId.ToString()
                 }, instanceId);
             }
             else

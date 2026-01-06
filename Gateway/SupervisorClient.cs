@@ -84,40 +84,43 @@ public class SupervisorClient
             }
         });
     }
-    
+
+    private static readonly HashSet<SupervisorEventType> CommandTypes = new()
+    {
+        SupervisorEventType.UpdatePlugins,
+        SupervisorEventType.Restart,
+        SupervisorEventType.UpdateRoutes,
+        SupervisorEventType.PreloadRoutes,
+        SupervisorEventType.ApplyBufferedRoutes,
+        SupervisorEventType.Stop
+    };
+
     private async Task HandleSupervisorCommandsAsync()
     {
-        await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (SupervisorEvent eventData) =>
+        // Subscribe to all specific command types
+        foreach (var commandType in CommandTypes)
         {
-            await ProcessCommandAsync(eventData);
-        }, _gateway.Identity.Id);
-        // // Subscribe to Supervisor commands
-        // await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (eventData) =>
-        // {
-        //     await ProcessCommandAsync(eventData);
-        // });
+            await _supervisor.SubscribeAsync(commandType, async (SupervisorEvent eventData) =>
+            {
+                await ProcessCommandAsync(eventData);
+            }, _gateway.Identity.Id);
+        }
     }
     
     private async Task ProcessCommandAsync(SupervisorEvent eventData)
     {
-        if (eventData.Value == null) return;
-        
-        if (_customEventHandlers.TryGetValue(eventData.Value, out var func))
+        if (_customEventHandlers.TryGetValue(eventData.Type.ToString(), out var func))
         {
             await func(eventData);
             return;
         }
         
-        switch (eventData.Value)
+        switch (eventData.Type)
         {
-            case "update_plugins":
-                
-
+            case SupervisorEventType.UpdatePlugins:
                 if (await HandlePluginDiscrepancies()) return;
-
                 break;
-            case "restart":
-                
+            case SupervisorEventType.Restart:
                 var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var newProcess = new System.Diagnostics.ProcessStartInfo
                 {
@@ -130,11 +133,25 @@ public class SupervisorClient
                 await Task.Delay(1000); // Give the new process a moment to start
                 Environment.Exit(0);
                 break;
-            case "update_routes":
-                await _gateway.RebuildRouterAsync();
+            case SupervisorEventType.UpdateRoutes:
+                _gateway.Pipe.Router = await _gateway.CreateRouterAsync();
                 break;
-            case "stop":
-                
+            case SupervisorEventType.PreloadRoutes:
+                _gateway.BufferedRouter = await _gateway.CreateRouterAsync();
+                await _supervisor.SendEventAsync(new SupervisorEvent
+                {   
+                    Type = SupervisorEventType.Response,
+                    Value = "preload_complete"
+                });
+                break;
+            case SupervisorEventType.ApplyBufferedRoutes:
+                if (_gateway.BufferedRouter != null)
+                {
+                    _gateway.Pipe.Router = _gateway.BufferedRouter;
+                    _gateway.BufferedRouter = null;
+                }
+                break;
+            case SupervisorEventType.Stop:
                 var instance = await _context.Set<Instance>().Where(i => i.Id == _gateway.Identity.Id).FirstOrDefaultAsync();
                 if (instance != null)
                 {
@@ -142,14 +159,9 @@ public class SupervisorClient
                     await _context.SaveChangesAsync();
                 }
                 await _context.DisposeAsync();
-                
                 Environment.Exit(0);
                 break;
-            default:
-                
-                break;
         }
-        await Task.CompletedTask;
     }
 
     private async Task<bool> HandlePluginDiscrepancies()

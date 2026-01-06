@@ -19,6 +19,7 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public Identity.Identity Identity { get; init; } = identity;
     public PluginInitialisation.PluginConfigManager PluginInitManager { get; init; } = pluginInitManager!;
     public ILogger? Logger { get; set; }
+    public RouteTrie? BufferedRouter { get; set; }
 
     internal Func<string, Func<SupervisorEvent, Task>, Task> AddCustomSupervisorHandler = null!;
     internal Func<SupervisorEvent, Guid?, Guid?, Task> SendSupervisorEvent = null!;
@@ -39,9 +40,9 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
         await TaskQueueHandler.ExecuteAsync(cancellationToken).ConfigureAwait(false);
     }
     
-    public async Task RebuildRouterAsync()
+    public async Task<RouteTrie> CreateRouterAsync()
     {
-        Pipe.Router = await RouterFactory.BuildRouteTrie(store.CreateStore().Context, ConfigurationsProvider);
+        return await RouterFactory.BuildRouteTrie(store.CreateStore().Context, ConfigurationsProvider);
     }
     
     public void AddLogger(ILogger logger)
