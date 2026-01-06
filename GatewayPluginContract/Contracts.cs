@@ -208,7 +208,12 @@ public class PluginConfigDefinition
     public string ConstraintDescription { get; set; } = "";
     public Func<DbContext,  List<string>>? ValuePrompts;
     public Predicate<string>? ValueConstraint { get; set; }
-    
+}
+
+public class MqCommandSubmission
+{
+    public required string Identifier { get; init; }
+    public required Func<DbContext, Task> Handler { get; init; }
 }
 
 public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
@@ -270,12 +275,17 @@ public abstract class SupervisorAdapter(IConfiguration configuration) : IService
 
 public enum SupervisorEventType
 {
-    Command,
     DeliveryUrl,
     Request,
     Response,
-    Event,    
-    Heartbeat
+    Event,
+    Heartbeat,
+    UpdatePlugins,
+    Restart,
+    UpdateRoutes,
+    PreloadRoutes,
+    ApplyBufferedRoutes,
+    Stop
 }
 
 public interface IPluginPackageManager : IService

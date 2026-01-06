@@ -36,7 +36,7 @@ public class ConfigProvider : IConfigurationsProvider
     private PluginManager? _pluginManager;
 
     private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, ServiceFailurePolicies onFailure, List<PipeProcessorContainer> processorList,
-        PluginManager.PluginServiceRegistrar registry)
+        PluginServiceRegistrar registry)
     {
         try
         {
