@@ -3,6 +3,7 @@ using Gateway.services;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
+using SharedServices;
 
 namespace Gateway;
 
@@ -67,6 +68,7 @@ public class GatewayBuilder(IConfiguration configuration)
     private IConfigurationsProvider ConfigurationsProvider { get; set; } = null!;
     private CacheManager CacheManager { get; set; } = null!;
     private PluginInitialisation.PluginConfigManager PluginInitManager { get; set; } = null!;
+    private CommandManager CommandManager { get; set; } = null!;
     private PluginManager PluginManager { get; set; } = new PluginManager(configuration);
     
     public async Task<GatewayBuild> Build()
@@ -126,33 +128,50 @@ public class GatewayBuilder(IConfiguration configuration)
     {
         await PluginManager.LoadPluginsAsync(pluginDirectory);
     }
+    
+    public void SetupPluginManager()
+    {
+        CacheManager.ConfigurePluginManager(PluginManager);
+        CommandManager.ConfigurePluginManager(PluginManager);
+    }
 
     public async Task<GatewayBuild> BuildFromConfiguration()
     {
-        
         PluginManager.LoadInternalServices(configuration["CoreServicesNamespace"] ?? "Gateway.services");
         var coreServices = configuration.GetSection("coreServices") ?? throw new InvalidOperationException("coreServices configuration section not found.");
-        var requiredServices = new[] {"Store", "Supervisor", "TaskQueue", "ConfigurationProvider"};
+        SetupBaseComponents(coreServices);
+
+        SetupDependentComponents();
+
+        SetupPluginManager();
+        
+        await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "service/plugins");
+        return await Build();
+    }
+
+    public void SetupDependentComponents()
+    {
+        ConfigurationsProvider = new ConfigProvider(configuration, PluginManager);
+        PluginInitManager = new PluginInitialisation.PluginConfigManager(StoreFactory.CreateStore().Context, PluginManager);
+        CacheManager = new CacheManager(StoreFactory);
+        CommandManager = new CommandManager();
+    }
+
+    public void SetupBaseComponents(IConfigurationSection coreServices)
+    {
+        var baseComponents = new[] {"Store", "Supervisor", "TaskQueue", "ConfigurationProvider"};
         Dictionary<string, string> serviceIdentifiers = new Dictionary<string, string>();
         
-        foreach (var service in requiredServices)
+        foreach (var service in baseComponents)
         {
             serviceIdentifiers.Add(service, coreServices[service] ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
         }
         
         StoreFactory = PluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["Store"]).Instance
-            ?? throw new InvalidOperationException("StoreFactory service not found.");
+                       ?? throw new InvalidOperationException("StoreFactory service not found.");
         SupervisorAdapter = PluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["Supervisor"]).Instance
-            ?? throw new InvalidOperationException("SupervisorClient service not found.");
+                            ?? throw new InvalidOperationException("SupervisorClient service not found.");
         LocalTaskQueue = PluginManager.Registrar.GetServiceByName<LocalTaskQueue>(serviceIdentifiers["TaskQueue"]).Instance
-            ?? throw new InvalidOperationException("TaskQueue service not found.");
-        
-        ConfigurationsProvider = new ConfigProvider(configuration, PluginManager);
-        PluginInitManager = new PluginInitialisation.PluginConfigManager(StoreFactory.CreateStore().Context, PluginManager);
-        CacheManager = new CacheManager(StoreFactory);
-        CacheManager.ConfigurePluginManager(PluginManager);
-        
-        await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "service/plugins");
-        return await Build();
+                         ?? throw new InvalidOperationException("TaskQueue service not found.");
     }
 }

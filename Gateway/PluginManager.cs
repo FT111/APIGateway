@@ -2,11 +2,13 @@ using System.IO.Compression;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
+using SharedServices;
 
 namespace Gateway;
 
 
-public class PluginManager
+public class PluginManager : InternalContracts.IPluginManager
+
 {
     private readonly IConfiguration _configuration;
     internal List<IPlugin> Plugins = [];
@@ -31,7 +33,7 @@ public class PluginManager
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
-    internal void AddPluginLoadStep(Func<IPlugin, Task> step)
+    public void AddPluginLoadStep(Func<IPlugin, Task> step)
     {
         _pluginLoadPipeline.Add(step);
     }
@@ -106,103 +108,103 @@ public class PluginManager
     }
 
     public Task LoadPluginsAsync(string path)
+        {
+            Registrar.Reset();
+            Plugins.Clear();
+            List<McMaster.NETCore.Plugins.PluginLoader> pluginLoaders = PluginLoader.GetPluginLoaders(path);
+
+            foreach (var pluginLoader in pluginLoaders)
+            {
+                foreach (var pluginLoaderType in pluginLoader.LoadDefaultAssembly().GetTypes()
+                             .Where(t => typeof(IPlugin).IsAssignableFrom(t) &&
+                                         t is { IsAbstract: false, IsClass: true }))
+                {
+                    // Create an instance of the plugin from the assembly found
+                    var plugin = pluginLoader.LoadDefaultAssembly()
+                        .CreateInstance(pluginLoaderType.FullName) as IPlugin;
+                    if (plugin == null)
                     {
-                        Registrar.Reset();
-                        Plugins.Clear();
-                        List<McMaster.NETCore.Plugins.PluginLoader> pluginLoaders = PluginLoader.GetPluginLoaders(path);
-
-                        foreach (var pluginLoader in pluginLoaders)
-                        {
-                            foreach (var pluginLoaderType in pluginLoader.LoadDefaultAssembly().GetTypes()
-                                         .Where(t => typeof(IPlugin).IsAssignableFrom(t) &&
-                                                     t is { IsAbstract: false, IsClass: true }))
-                            {
-                                // Create an instance of the plugin from the assembly found
-                                var plugin = pluginLoader.LoadDefaultAssembly()
-                                    .CreateInstance(pluginLoaderType.FullName) as IPlugin;
-                                if (plugin == null)
-                                {
-                                    continue;
-                                }
-
-                                // Run the plugin load pipeline
-                                foreach (var step in _pluginLoadPipeline)
-                                {
-                                    step(plugin);
-                                }
-                            }
-                        }
-
-                        ResolveDependencies();
-                        return Task.CompletedTask;
+                        continue;
                     }
 
-                    private static async Task<HashSet<string>> ResolveRequiredPluginsAsync(
-                        IQueryable<PipeService> services)
+                    // Run the plugin load pipeline
+                    foreach (var step in _pluginLoadPipeline)
                     {
-                        var requiredPlugins = new HashSet<string>();
-                        await services.ForEachAsync(service =>
-                        {
-                            var identifier = service.PluginTitle + "_" + service.PluginVersion;
-                            requiredPlugins.Add(identifier);
-                        });
-
-                        return requiredPlugins;
-                    }
-
-                    public async Task<PluginVerificationResult> VerifyInstalledPluginsAsync(
-                        IQueryable<PipeService> services)
-                    {
-                        var requiredPlugins = await ResolveRequiredPluginsAsync(services);
-                        var installedPlugins = new HashSet<string>(Plugins.Select(p =>
-                            p.GetManifest().Name + "_" + p.GetManifest().Version));
-
-                        return new PluginVerificationResult
-                        {
-                            Missing = requiredPlugins.Except(installedPlugins).ToList(),
-                            Removed = installedPlugins.Except(requiredPlugins).ToList()
-                        };
-                    }
-
-                    public async Task DownloadAndInstallPluginAsync(string identifier)
-                    {
-                        var httpClient = new HttpClient();
-                        identifier = identifier.Replace("/", "_");
-                        var fullDeliveryUrl = PluginDeliveryUrl + "/" + identifier + ".gap";
-
-                        var response = await httpClient.GetAsync(fullDeliveryUrl);
-                        response.EnsureSuccessStatusCode();
-
-                        var pluginData = await response.Content.ReadAsByteArrayAsync();
-                        var pluginPath = Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins",
-                            identifier + ".gap");
-                        await File.WriteAllBytesAsync(pluginPath, pluginData);
-
-                        ZipFile.ExtractToDirectory(pluginPath,
-                            Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins", identifier), true);
-
-                        // Delete the .gap file after extraction
-                        if (File.Exists(pluginPath))
-                        {
-                            File.Delete(pluginPath);
-                        }
-                    }
-
-                    public async Task RemovePluginAsync(string identifier)
-                    {
-                        identifier = identifier.Replace("/", "_");
-                        var pluginPath = Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins",
-                            identifier);
-                        if (File.Exists(pluginPath))
-                        {
-                            File.Delete(pluginPath);
-                        }
-                        else
-                        {
-                            throw new FileNotFoundException($"Plugin file '{pluginPath}' not found.");
-                        }
+                        step(plugin);
                     }
                 }
+            }
+
+            ResolveDependencies();
+            return Task.CompletedTask;
+        }
+
+        private static async Task<HashSet<string>> ResolveRequiredPluginsAsync(
+            IQueryable<PipeService> services)
+        {
+            var requiredPlugins = new HashSet<string>();
+            await services.ForEachAsync(service =>
+            {
+                var identifier = service.PluginTitle + "_" + service.PluginVersion;
+                requiredPlugins.Add(identifier);
+            });
+
+            return requiredPlugins;
+        }
+
+        public async Task<PluginVerificationResult> VerifyInstalledPluginsAsync(
+            IQueryable<PipeService> services)
+        {
+            var requiredPlugins = await ResolveRequiredPluginsAsync(services);
+            var installedPlugins = new HashSet<string>(Plugins.Select(p =>
+                p.GetManifest().Name + "_" + p.GetManifest().Version));
+
+            return new PluginVerificationResult
+            {
+                Missing = requiredPlugins.Except(installedPlugins).ToList(),
+                Removed = installedPlugins.Except(requiredPlugins).ToList()
+            };
+        }
+
+        public async Task DownloadAndInstallPluginAsync(string identifier)
+        {
+            var httpClient = new HttpClient();
+            identifier = identifier.Replace("/", "_");
+            var fullDeliveryUrl = PluginDeliveryUrl + "/" + identifier + ".gap";
+
+            var response = await httpClient.GetAsync(fullDeliveryUrl);
+            response.EnsureSuccessStatusCode();
+
+            var pluginData = await response.Content.ReadAsByteArrayAsync();
+            var pluginPath = Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins",
+                identifier + ".gap");
+            await File.WriteAllBytesAsync(pluginPath, pluginData);
+
+            ZipFile.ExtractToDirectory(pluginPath,
+                Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins", identifier), true);
+
+            // Delete the .gap file after extraction
+            if (File.Exists(pluginPath))
+            {
+                File.Delete(pluginPath);
+            }
+        }
+
+        public async Task RemovePluginAsync(string identifier)
+        {
+            identifier = identifier.Replace("/", "_");
+            var pluginPath = Path.Combine(_configuration["PluginDirectory"] ?? "service/plugins",
+                identifier);
+            if (File.Exists(pluginPath))
+            {
+                File.Delete(pluginPath);
+            }
+            else
+            {
+                throw new FileNotFoundException($"Plugin file '{pluginPath}' not found.");
+            }
+        }
+    }
             
 
 

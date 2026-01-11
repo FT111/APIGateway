@@ -8,4 +8,9 @@ public static class InternalContracts
     {
         public required string? PluginIdentifier { get; set; }
     }
+    
+    public interface IPluginManager
+    {
+        void AddPluginLoadStep(Func<IPlugin, Task> step);
+    }
 }

@@ -81,6 +81,7 @@ public class PluginManifest
     public required double Version { get; init; } 
     public required string Description { get; init; }
     public required string Author { get; init; }
+    public List<MqCommandSubmission> Commands { get; init; } = [];
     public List<PluginDependency> Dependencies { get; init; } = [];
 }
 
