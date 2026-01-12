@@ -214,7 +214,7 @@ public class PluginConfigDefinition
 public class MqCommandSubmission
 {
     public required string Identifier { get; init; }
-    public required Func<DbContext, Task> Handler { get; init; }
+    public required Func<DbContext, GatewayBase, Task> Handler { get; init; }
 }
 
 public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
@@ -293,4 +293,48 @@ public interface IPluginPackageManager : IService
 {
     public string GetPluginStaticUrl();
     public void PackagePluginsAsync();
+}
+
+public interface IPluginManager
+{
+    public Task LoadPluginsAsync(string path);
+    public void AddPluginLoadStep(Func<IPlugin, Task> step);
+
+    public Task<PluginVerificationResult> VerifyInstalledPluginsAsync(
+        IQueryable<PipeService> services);
+    
+    public ServiceTypes GetServiceTypeByIdentifier(string identifier);
+
+    public Task DownloadAndInstallPluginAsync(string identifier);
+
+    public Task RemovePluginAsync(string identifier);
+
+}
+
+public class PluginVerificationResult
+{
+    public List<string> Missing { get; set; } = [];
+    public List<string> Removed { get; set; } = [];
+    public bool IsValid => Missing.Count == 0 && Removed.Count == 0;
+}
+
+
+public abstract class GatewayBase
+{
+    public IConfiguration BaseConfiguration { get; }
+    public StoreFactory Store { get; }
+    // Use the contract interface for background queue
+    public IBackgroundQueue LocalTaskQueue { get; set; }
+    public ILogger? Logger { get; set; }
+    public IPluginManager PluginManager { get; set; } = null!;
+
+    protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue)
+    {
+        BaseConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        Store = store ?? throw new ArgumentNullException(nameof(store));
+        LocalTaskQueue = localTaskQueue ?? throw new ArgumentNullException(nameof(localTaskQueue));
+    }
+
+    // Small helper so concrete implementations can extend logger behaviour
+    public virtual void AddLogger(ILogger logger) => Logger = logger;
 }

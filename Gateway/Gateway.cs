@@ -4,22 +4,26 @@ using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using SharedServices;
+using SharedServices.Commands;
 
 namespace Gateway;
 
-// Main director
+// change: inherit the abstract base and pass matching args to base ctor
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
     Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager)
+    : GatewayPluginContract.GatewayBase(configuration, store, localTaskQueue)
 {
-    public IConfiguration BaseConfiguration { get; } = configuration ?? throw new ArgumentNullException(nameof(configuration));
-    public StoreFactory Store { get; } = store;
-    public LocalTaskQueue LocalTaskQueue { get; set; } = localTaskQueue;
+    public new LocalTaskQueue LocalTaskQueue {
+        get => (LocalTaskQueue)base.LocalTaskQueue;
+        set => base.LocalTaskQueue = value;
+    }
+
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
-    public PluginManager PluginManager { get; set; } = pluginManager;
+    public new PluginManager PluginManager { get; set; } = pluginManager;
     public CacheManager CacheManager { get; set; } = cacheManager;
     public Identity.Identity Identity { get; init; } = identity;
     public PluginInitialisation.PluginConfigManager PluginInitManager { get; init; } = pluginInitManager!;
-    public ILogger? Logger { get; set; }
+    // Logger is inherited from GatewayBase
     public RouteTrie? BufferedRouter { get; set; }
 
     internal Func<string, Func<SupervisorEvent, Task>, Task> AddCustomSupervisorHandler = null!;
@@ -48,7 +52,7 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     
     public void AddLogger(ILogger logger)
     {
-        Logger = logger;
+        base.AddLogger(logger); // set base logger
         TaskQueueHandler.AddLogger(logger);
     }
 }

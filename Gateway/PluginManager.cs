@@ -7,7 +7,7 @@ using SharedServices;
 namespace Gateway;
 
 
-public class PluginManager : InternalContracts.IPluginManager
+public class PluginManager : IPluginManager
 
 {
     private readonly IConfiguration _configuration;
@@ -38,12 +38,6 @@ public class PluginManager : InternalContracts.IPluginManager
         _pluginLoadPipeline.Add(step);
     }
 
-    public class PluginVerificationResult
-    {
-        public List<string> Missing { get; set; } = [];
-        public List<string> Removed { get; set; } = [];
-        public bool IsValid => Missing.Count == 0 && Removed.Count == 0;
-    }
 
     public ServiceTypes GetServiceTypeByIdentifier(string identifier)
     {
