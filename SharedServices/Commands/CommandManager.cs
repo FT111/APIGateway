@@ -1,10 +1,12 @@
-﻿namespace SharedServices;
+﻿using GatewayPluginContract;
+
+namespace SharedServices.Commands;
 
 public class CommandManager
 {
-    private readonly Dictionary<string, InternalContracts.InternalCommandDefinition> _commands = new();
+    private readonly Dictionary<string, InternalContracts.CommandDefinition> _commands = new();
     
-    public void ConfigurePluginManager(InternalContracts.IPluginManager pluginManager)
+    public void ConfigurePluginManager(IPluginManager pluginManager)
     {
         pluginManager.AddPluginLoadStep(async plugin =>
         {
@@ -13,7 +15,7 @@ public class CommandManager
             foreach (var command in manifest.Commands)
             {
                 // Transform MQSubmission to InternalCommandDefinition
-                var internalCommand = new InternalContracts.InternalCommandDefinition()
+                var internalCommand = new InternalContracts.CommandDefinition()
                 {
                     PluginIdentifier = pluginKey,
                     Identifier = command.Identifier,
@@ -25,7 +27,7 @@ public class CommandManager
         });
     }
     
-    public void RegisterCommand(InternalContracts.InternalCommandDefinition command)
+    public void RegisterCommand(InternalContracts.CommandDefinition command)
     {
         var commandKey = command.PluginIdentifier + "/" + command.Identifier;
         if (_commands.ContainsKey(commandKey))

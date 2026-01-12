@@ -117,9 +117,6 @@ public class SupervisorClient
         
         switch (eventData.Type)
         {
-            case SupervisorEventType.UpdatePlugins:
-                if (await HandlePluginDiscrepancies()) return;
-                break;
             case SupervisorEventType.Restart:
                 var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var newProcess = new System.Diagnostics.ProcessStartInfo
@@ -164,53 +161,4 @@ public class SupervisorClient
         }
     }
 
-    private async Task<bool> HandlePluginDiscrepancies()
-    {
-        // Reload plugins to ensure the latest state - Then verify 
-        await _gateway.PluginManager.LoadPluginsAsync("services/plugins");
-        var pluginVerification =
-            await _gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>().AsNoTracking()
-                .AsQueryable());
-
-        if (pluginVerification.IsValid)
-        {
-            return true;
-        }
-        
-        try
-        {
-            foreach (var plugin in pluginVerification.Missing)
-            {
-                
-                await _gateway.PluginManager.DownloadAndInstallPluginAsync(plugin);
-            }
-                    
-            // Clean up old plugins
-            foreach (var plugin in pluginVerification.Removed)
-            {
-                await _gateway.PluginManager.RemovePluginAsync(plugin);
-            }
-                    
-            // Load new plugins
-            await _gateway.PluginManager.LoadPluginsAsync("services/plugins");
-            // Initialise newly installed plugins
-            _gateway.PluginInitManager.InitialiseFromPluginManager(_gateway.PluginManager);
-                    
-            var finalVerification =
-                await _gateway.PluginManager.VerifyInstalledPluginsAsync(_context.Set<PipeService>()
-                    .AsNoTracking().AsQueryable());
-
-            if (!finalVerification.IsValid)
-            {
-                throw new InvalidOperationException("Plugin verification failed after attempting to download and install missing plugins.");
-            }
-        }
-        catch (Exception ex)
-        {
-            
-        }
-    
-
-        return false;
-    }
 }
