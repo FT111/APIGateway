@@ -84,16 +84,7 @@ public class SupervisorClient
             }
         });
     }
-
-    private static readonly HashSet<SupervisorEventType> CommandTypes = new()
-    {
-        SupervisorEventType.UpdatePlugins,
-        SupervisorEventType.Restart,
-        SupervisorEventType.UpdateRoutes,
-        SupervisorEventType.PreloadRoutes,
-        SupervisorEventType.ApplyBufferedRoutes,
-        SupervisorEventType.Stop
-    };
+    
 
     private async Task HandleSupervisorCommandsAsync()
     {

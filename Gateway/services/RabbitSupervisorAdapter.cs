@@ -37,11 +37,8 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         // Declare exchanges
         _exchangeNames = new Dictionary<SupervisorEventType, string>
         {
-            [SupervisorEventType.Event] = configuration["Queues:Events"] ?? "events",
-            [SupervisorEventType.Heartbeat] = configuration["Queues:Heartbeats"] ?? "heartbeats",
-            [SupervisorEventType.Request] = configuration["Queues:Requests"] ?? "requests",
-            [SupervisorEventType.Response] = configuration["Queues:Responses"] ?? "responses",
-            [SupervisorEventType.DeliveryUrl] = configuration["Queues:DeliveryUrls"] ?? "delivery_urls",
+            [SupervisorEventType.Command] = "commands",
+            [SupervisorEventType.Event] = "commands",
         };
 
 
@@ -79,36 +76,36 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         );
     }
     
-    public override async Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout)
-    {
-        var queueName = _channel.QueueDeclareAsync().Result.QueueName;
-        _channel.QueueBindAsync(queueName, _exchangeNames[SupervisorEventType.Response], "");
-
-        var tcs = new TaskCompletionSource<SupervisorEvent>();
-        var consumer = new AsyncEventingBasicConsumer(_channel);
-        consumer.ReceivedAsync += async (model, ea) =>
-        {
-            
-            if (ea.BasicProperties.CorrelationId == correlationId.ToString())
-            {
-                var body = ea.Body.ToArray();
-                var message = System.Text.Encoding.UTF8.GetString(body);
-                var eventData = new SupervisorEvent
-                {
-                    Type = SupervisorEventType.Response,
-                    Value = message,
-                    CorrelationId = correlationId
-                };
-                tcs.SetResult(eventData);
-            }
-            await Task.Yield();
-        };
-
-        _channel.BasicConsumeAsync(queue: queueName, autoAck: true, consumer: consumer);
-
-        var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
-        return completedTask == tcs.Task ? await tcs.Task : throw new TimeoutException("Awaiting response timed out");
-    }
+    // public override async Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout)
+    // {
+    //     var queueName = _channel.QueueDeclareAsync().Result.QueueName;
+    //     _channel.QueueBindAsync(queueName, _exchangeNames[SupervisorEventType.Response], "");
+    //
+    //     var tcs = new TaskCompletionSource<SupervisorEvent>();
+    //     var consumer = new AsyncEventingBasicConsumer(_channel);
+    //     consumer.ReceivedAsync += async (model, ea) =>
+    //     {
+    //         
+    //         if (ea.BasicProperties.CorrelationId == correlationId.ToString())
+    //         {
+    //             var body = ea.Body.ToArray();
+    //             var message = System.Text.Encoding.UTF8.GetString(body);
+    //             var eventData = new SupervisorEvent
+    //             {
+    //                 Type = SupervisorEventType.Response,
+    //                 Value = message,
+    //                 CorrelationId = correlationId
+    //             };
+    //             tcs.SetResult(eventData);
+    //         }
+    //         await Task.Yield();
+    //     };
+    //
+    //     _channel.BasicConsumeAsync(queue: queueName, autoAck: true, consumer: consumer);
+    //
+    //     var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+    //     return completedTask == tcs.Task ? await tcs.Task : throw new TimeoutException("Awaiting response timed out");
+    // }
 
     public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null, Guid? correlationId = null)
     {
