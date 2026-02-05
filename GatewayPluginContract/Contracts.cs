@@ -276,17 +276,8 @@ public abstract class SupervisorAdapter(IConfiguration configuration) : IService
 
 public enum SupervisorEventType
 {
-    DeliveryUrl,
-    Request,
-    Response,
-    Event,
-    Heartbeat,
-    UpdatePlugins,
-    Restart,
-    UpdateRoutes,
-    PreloadRoutes,
-    ApplyBufferedRoutes,
-    Stop
+    Command,
+    Event
 }
 
 public interface IPluginPackageManager : IService
@@ -299,16 +290,20 @@ public interface IPluginManager
 {
     public Task LoadPluginsAsync(string path);
     public void AddPluginLoadStep(Func<IPlugin, Task> step);
+    public List<IPlugin> GetPlugins { get; }
 
     public Task<PluginVerificationResult> VerifyInstalledPluginsAsync(
         IQueryable<PipeService> services);
     
-    public ServiceTypes GetServiceTypeByIdentifier(string identifier);
-
     public Task DownloadAndInstallPluginAsync(string identifier);
 
     public Task RemovePluginAsync(string identifier);
+}
 
+public interface IPLuginInitialiser
+{
+    void InitialiseFromPluginManager(IPluginManager manager);
+    void InitialisePluginIfUninitialised(IPlugin plugin);
 }
 
 public class PluginVerificationResult
@@ -319,6 +314,8 @@ public class PluginVerificationResult
 }
 
 
+
+
 public abstract class GatewayBase
 {
     public IConfiguration BaseConfiguration { get; }
@@ -327,6 +324,7 @@ public abstract class GatewayBase
     public IBackgroundQueue LocalTaskQueue { get; set; }
     public ILogger? Logger { get; set; }
     public IPluginManager PluginManager { get; set; } = null!;
+    public IPLuginInitialiser PluginInitManager { get; set;  }
 
     protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue)
     {

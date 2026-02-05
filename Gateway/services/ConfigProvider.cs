@@ -32,8 +32,8 @@ public class ConfigProvider : IConfigurationsProvider
     private ICollection<PipeService> _globalPipeServices = new List<PipeService>();
     private Dictionary<string, ICollection<PipeService>> _endpointPipeServices = new Dictionary<string, ICollection<PipeService>>();
     
-    private Repositories? _dataRepos;
-    private PluginManager? _pluginManager;
+    private Repositories _dataRepos;
+    private PluginManager _pluginManager;
 
     private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, ServiceFailurePolicies onFailure, List<PipeProcessorContainer> processorList,
         PluginServiceRegistrar registry)
@@ -71,7 +71,11 @@ public class ConfigProvider : IConfigurationsProvider
             try
             {
                 var identifier = service.PluginTitle + service.PluginVersion + "/" + service.ServiceTitle;
-                var type = _pluginManager?.GetServiceTypeByIdentifier(identifier);
+
+
+                var service1 = _pluginManager.Registrar.GetServiceByName<IService>(identifier);
+                var type = service1?.ServiceType ?? throw new KeyNotFoundException($"Service '{identifier}' not found.");
+
                 switch (type)
                 {
                     case ServiceTypes.PreProcessor:

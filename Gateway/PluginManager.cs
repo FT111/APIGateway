@@ -11,11 +11,13 @@ public class PluginManager : IPluginManager
 
 {
     private readonly IConfiguration _configuration;
-    internal List<IPlugin> Plugins = [];
+    public readonly List<IPlugin> Plugins = [];
     internal string PluginDeliveryUrl = string.Empty;
     internal readonly PluginServiceRegistrar Registrar = new();
     private List<Func<IPlugin, Task>> _pluginLoadPipeline = [];
 
+    public List<IPlugin> GetPlugins => this.Plugins;
+    
     public PluginManager(IConfiguration configuration)
     {
         // Setup default load pipeline
@@ -37,14 +39,6 @@ public class PluginManager : IPluginManager
     {
         _pluginLoadPipeline.Add(step);
     }
-
-
-    public ServiceTypes GetServiceTypeByIdentifier(string identifier)
-    {
-        var service = Registrar.GetServiceByName<IService>(identifier);
-        return service?.ServiceType ?? throw new KeyNotFoundException($"Service '{identifier}' not found.");
-    }
-
 
     private void ResolveDependencies()
     {
