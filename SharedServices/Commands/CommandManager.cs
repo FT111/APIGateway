@@ -4,6 +4,7 @@ namespace SharedServices.Commands;
 
 public class CommandManager
 {
+    private const string InternalProtectedString = "internal.";
     private readonly Dictionary<string, InternalContracts.CommandDefinition> _commands = new();
     
     public void ConfigurePluginManager(IPluginManager pluginManager)
@@ -11,7 +12,7 @@ public class CommandManager
         pluginManager.AddPluginLoadStep(async plugin =>
         {
             var manifest = plugin.GetManifest();
-            var pluginKey = manifest.Name + "/" + manifest.Version;
+            var pluginKey = manifest.Name + manifest.Version;
             foreach (var command in manifest.Commands)
             {
                 // Transform MQSubmission to InternalCommandDefinition
@@ -29,10 +30,24 @@ public class CommandManager
     
     public void RegisterCommand(InternalContracts.CommandDefinition command)
     {
-        var commandKey = command.PluginIdentifier + "/" + command.Identifier;
+        var commandKey = command.PluginIdentifier + "." + command.Identifier;
+        if (commandKey.StartsWith(InternalProtectedString))
+        {
+            throw new InvalidOperationException($"{command.PluginIdentifier} is attempting to register command '{commandKey}', which is reserved for internal commands.");
+        }
         if (_commands.ContainsKey(commandKey))
         {
             throw new InvalidOperationException($"{command.PluginIdentifier} is attempting to register command '{commandKey}', which is already registered by the plugin.");
+        }
+        _commands[commandKey] = command;
+    }
+    
+    internal void RegisterInternalCommand(InternalContracts.CommandDefinition command)
+    {
+        var commandKey = InternalProtectedString + command.Identifier;
+        if (_commands.ContainsKey(commandKey))
+        {
+            throw new InvalidOperationException($"Attempting to register internal command '{commandKey}', which is already registered.");
         }
         _commands[commandKey] = command;
     }
