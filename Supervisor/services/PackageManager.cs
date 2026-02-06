@@ -24,7 +24,7 @@ public class PackageManager
 
     private async Task HandlePackageDeliveryRequestsAsync()
     {
-        await _messageAdapter.SubscribeAsync(SupervisorEventType.Request, async (evt) =>
+        await _messageAdapter.SubscribeAsync(SupervisorEventType.Command, async (evt) =>
         {
             if (evt.Value != "NEED_PACKAGE_URL")
             {
@@ -33,7 +33,7 @@ public class PackageManager
             
             await _messageAdapter.SendEventAsync(new SupervisorEvent
             {
-                Type = SupervisorEventType.Response,
+                Type = DefaultMqCommands.Response,
                 Value = _packager.GetPluginStaticUrl()
             }, null, evt.CorrelationId);
         });

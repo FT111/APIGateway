@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GatewayPluginContract.Entities;
+using GatewayPluginContract.MQ;
 using Microsoft.EntityFrameworkCore.Metadata;
 using RabbitMQ.Client.Events;
 
@@ -68,7 +69,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         };
 
         await _channel.BasicPublishAsync(
-            exchange: _exchangeNames[eventData.Type],
+            exchange: _exchangeNames[SupervisorEventType.Command],
             routingKey: instanceId?.ToString() ?? "",
             mandatory: false,
             basicProperties: props,
@@ -79,7 +80,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
     // public override async Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout)
     // {
     //     var queueName = _channel.QueueDeclareAsync().Result.QueueName;
-    //     _channel.QueueBindAsync(queueName, _exchangeNames[SupervisorEventType.Response], "");
+    //     _channel.QueueBindAsync(queueName, _exchangeNames[DefaultMqCommands.Response], "");
     //
     //     var tcs = new TaskCompletionSource<SupervisorEvent>();
     //     var consumer = new AsyncEventingBasicConsumer(_channel);
@@ -92,7 +93,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
     //             var message = System.Text.Encoding.UTF8.GetString(body);
     //             var eventData = new SupervisorEvent
     //             {
-    //                 Type = SupervisorEventType.Response,
+    //                 Type = DefaultMqCommands.Response,
     //                 Value = message,
     //                 CorrelationId = correlationId
     //             };
@@ -124,9 +125,17 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
             // Convert the received message to SupervisorEvent
             var body = ea.Body.ToArray();
             var message = System.Text.Encoding.UTF8.GetString(body);
+            
+            if (ea.BasicProperties.Headers == null) return;
+            ea.BasicProperties.Headers.TryGetValue("command", out var commandIdentifier);
+            if (commandIdentifier == null) return;
+            string commandIdentifierString = commandIdentifier.ToString() ?? throw new InvalidOperationException(); 
+
+            Contracts.MqCommandKey.TryParse(commandIdentifierString, out var key);
+            
             var eventData = new SupervisorEvent
             {
-                Type = eventType,
+                Type = key,
                 Value = message,
                 CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };

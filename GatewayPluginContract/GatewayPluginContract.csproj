@@ -12,6 +12,13 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Gateway" />
+        <InternalsVisibleTo Include="SharedServices" />
+        <InternalsVisibleTo Include="Supervisor" />
+        <!-- Add any other trusted projects -->
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     </ItemGroup>
 

@@ -1,11 +1,12 @@
 ﻿using GatewayPluginContract;
+using GatewayPluginContract.MQ;
 
 namespace SharedServices.Commands;
 
 public class CommandManager
 {
     private const string InternalProtectedString = "internal.";
-    private readonly Dictionary<string, InternalContracts.CommandDefinition> _commands = new();
+    private readonly Dictionary<Contracts.MqCommandKey, InternalContracts.CommandDefinition> _commands = new();
     
     public void ConfigurePluginManager(IPluginManager pluginManager)
     {
@@ -27,6 +28,11 @@ public class CommandManager
             await Task.CompletedTask;
         });
     }
+
+    public InternalContracts.CommandDefinition GetCommand(Contracts.MqCommandKey commandKey)
+    {
+        return _commands[commandKey] ?? throw new KeyNotFoundException($"Command '{commandKey}' not found.");
+    }
     
     public void RegisterCommand(InternalContracts.CommandDefinition command)
     {
@@ -44,11 +50,10 @@ public class CommandManager
     
     internal void RegisterInternalCommand(InternalContracts.CommandDefinition command)
     {
-        var commandKey = InternalProtectedString + command.Identifier;
-        if (_commands.ContainsKey(commandKey))
+        var commandKey = Contracts.MqCommandKey.Internal(command.Identifier);
+        if (!_commands.TryAdd(commandKey, command))
         {
             throw new InvalidOperationException($"Attempting to register internal command '{commandKey}', which is already registered.");
         }
-        _commands[commandKey] = command;
     }
 }

@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq.Expressions;
+using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Serialization;
 using GatewayPluginContract.Entities;
+using GatewayPluginContract.MQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -214,7 +216,7 @@ public class PluginConfigDefinition
 public class MqCommandSubmission
 {
     public required string Identifier { get; init; }
-    public required Func<DbContext, GatewayBase, Task> Handler { get; init; }
+    public required Func<GatewayBase, string?, Task> Handler { get; init; }
 }
 
 public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
@@ -278,6 +280,20 @@ public enum SupervisorEventType
 {
     Command,
     Event
+}
+
+public static class DefaultMqCommands
+{
+    public static readonly Contracts.MqCommandKey Restart = Contracts.MqCommandKey.Internal("restart");
+    public static readonly Contracts.MqCommandKey ApplyBufferedRoutes = Contracts.MqCommandKey.Internal("routes.apply-preload");
+    public static readonly Contracts.MqCommandKey UpdateRoutes = Contracts.MqCommandKey.Internal("routes.update");
+    public static readonly Contracts.MqCommandKey UpdatePlugins = Contracts.MqCommandKey.Internal("plugins.update");
+    public static readonly Contracts.MqCommandKey Stop = Contracts.MqCommandKey.Internal("stop");
+    public static readonly Contracts.MqCommandKey PreloadRoutes = Contracts.MqCommandKey.Internal("routes.preload");
+    public static readonly Contracts.MqCommandKey Heartbeat = Contracts.MqCommandKey.Internal("heartbeat");
+    public static readonly Contracts.MqCommandKey UpdateDeliveryUrl = Contracts.MqCommandKey.Internal("packages.url.update");
+    public static readonly Contracts.MqCommandKey Response = Contracts.MqCommandKey.Internal("response");
+    
 }
 
 public interface IPluginPackageManager : IService

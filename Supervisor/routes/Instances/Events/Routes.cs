@@ -16,11 +16,11 @@ public class Routes
             {
                 try
                 {
-                    if (e.Type == nameof(SupervisorEventType.UpdatePlugins))
+                    if (e.Type == nameof(DefaultMqCommands.UpdatePlugins))
                     {
                         await mqHandler.SendEventAsync(new SupervisorEvent
                         {
-                            Type = SupervisorEventType.DeliveryUrl,
+                            Type = DefaultMqCommands.UpdateDeliveryUrl,
                             Value = packages.GetPluginStaticUrl()
                         });
                         packages.PackagePluginsAsync();
@@ -28,7 +28,7 @@ public class Routes
                     }
                     await mqHandler.SendEventAsync(new SupervisorEvent
                     {
-                        Type = Enum.Parse<SupervisorEventType>(e.Type, true),
+                        Type = e.Type,
                         Value = e.Value
                     });
                 }

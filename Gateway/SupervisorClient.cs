@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using GatewayPluginContract.MQ;
 using Microsoft.EntityFrameworkCore;
 
 namespace Gateway;
@@ -39,7 +40,7 @@ public class SupervisorClient
         // Handle Supervisor commands
         await HandleSupervisorCommandsAsync();
         // Handle plugin delivery URL updates
-        await HandlePluginDeliveryUrlUpdatesAsync();
+        // await HandlePluginDeliveryUrlUpdatesAsync();
     }
 
     private async Task SendHeartbeatAsync()
@@ -47,7 +48,7 @@ public class SupervisorClient
         // Send a heartbeat to the Supervisor
         await _supervisor.SendEventAsync(new SupervisorEvent
         {
-            Type = SupervisorEventType.Heartbeat,
+            Type = DefaultMqCommands.Heartbeat,
             Value = _gateway.Identity.Id.ToString()
         });
     }
@@ -73,83 +74,88 @@ public class SupervisorClient
         return Task.CompletedTask;
     }
     
-    private async Task HandlePluginDeliveryUrlUpdatesAsync()
-    {
-        await _supervisor.SubscribeAsync(SupervisorEventType.DeliveryUrl, async (eventData) =>
-        {
-            if (eventData.Value != null && eventData.Value.StartsWith("http"))
-            {
-                _gateway.PluginManager.PluginDeliveryUrl = eventData.Value;
-                
-            }
-        });
-    }
-    
+    // private async Task HandlePluginDeliveryUrlUpdatesAsync()
+    // {
+    //     await _supervisor.SubscribeAsync(DefaultMqCommands.UpdateDeliveryUrl, async (eventData) =>
+    //     {
+    //         if (eventData.Value != null && eventData.Value.StartsWith("http"))
+    //         {
+    //             _gateway.PluginManager.PluginDeliveryUrl = eventData.Value;
+    //             
+    //         }
+    //     });
+    // }
+    //
 
     private async Task HandleSupervisorCommandsAsync()
     {
-        // Subscribe to all specific command types
-        foreach (var commandType in CommandTypes)
-        {
-            await _supervisor.SubscribeAsync(commandType, async (SupervisorEvent eventData) =>
+            await _supervisor.SubscribeAsync(SupervisorEventType.Command, async (SupervisorEvent eventData) =>
             {
                 await ProcessCommandAsync(eventData);
             }, _gateway.Identity.Id);
-        }
     }
     
     private async Task ProcessCommandAsync(SupervisorEvent eventData)
     {
-        if (_customEventHandlers.TryGetValue(eventData.Type.ToString(), out var func))
+        // parse eventdata to a command key
+        Contracts.MqCommandKey.TryParse(eventData.Type, out var commandKey);
+
+        try
         {
-            await func(eventData);
+            var cmd = _gateway.CommandManager.GetCommand(commandKey);
+            await cmd.Handler(_gateway, eventData.Value);
             return;
         }
-        
-        switch (eventData.Type)
+        catch (Exception ex)
         {
-            case SupervisorEventType.Restart:
-                var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-                var newProcess = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = currentProcess.MainModule?.FileName ?? throw new InvalidOperationException("Cannot determine current process file name"),
-                    Arguments = string.Join(' ', Environment.GetCommandLineArgs().Skip(1)),
-                    UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Normal
-                };
-                System.Diagnostics.Process.Start(newProcess);
-                await Task.Delay(1000); // Give the new process a moment to start
-                Environment.Exit(0);
-                break;
-            case SupervisorEventType.UpdateRoutes:
-                _gateway.Pipe.Router = await _gateway.CreateRouterAsync();
-                break;
-            case SupervisorEventType.PreloadRoutes:
-                _gateway.BufferedRouter = await _gateway.CreateRouterAsync();
-                await _supervisor.SendEventAsync(new SupervisorEvent
-                {   
-                    Type = SupervisorEventType.Response,
-                    Value = "preload_complete"
-                });
-                break;
-            case SupervisorEventType.ApplyBufferedRoutes:
-                if (_gateway.BufferedRouter != null)
-                {
-                    _gateway.Pipe.Router = _gateway.BufferedRouter;
-                    _gateway.BufferedRouter = null;
-                }
-                break;
-            case SupervisorEventType.Stop:
-                var instance = await _context.Set<Instance>().Where(i => i.Id == _gateway.Identity.Id).FirstOrDefaultAsync();
-                if (instance != null)
-                {
-                    instance.Status = "offline";
-                    await _context.SaveChangesAsync();
-                }
-                await _context.DisposeAsync();
-                Environment.Exit(0);
-                break;
+            // command isn't registered
         }
+
+        
+        // switch (eventData.Type)
+        // {
+        //     case DefaultMqCommands.Restart:
+        //         var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+        //         var newProcess = new System.Diagnostics.ProcessStartInfo
+        //         {
+        //             FileName = currentProcess.MainModule?.FileName ?? throw new InvalidOperationException("Cannot determine current process file name"),
+        //             Arguments = string.Join(' ', Environment.GetCommandLineArgs().Skip(1)),
+        //             UseShellExecute = true,
+        //             WindowStyle = ProcessWindowStyle.Normal
+        //         };
+        //         System.Diagnostics.Process.Start(newProcess);
+        //         await Task.Delay(1000); // Give the new process a moment to start
+        //         Environment.Exit(0);
+        //         break;
+        //     case DefaultMqCommands.UpdateRoutes:
+        //         _gateway.Pipe.Router = await _gateway.CreateRouterAsync();
+        //         break;
+        //     case DefaultMqCommands.PreloadRoutes:
+        //         _gateway.BufferedRouter = await _gateway.CreateRouterAsync();
+        //         await _supervisor.SendEventAsync(new SupervisorEvent
+        //         {   
+        //             Type = DefaultMqCommands.Response,
+        //             Value = "preload_complete"
+        //         });
+        //         break;
+        //     case DefaultMqCommands.ApplyBufferedRoutes:
+        //         if (_gateway.BufferedRouter != null)
+        //         {
+        //             _gateway.Pipe.Router = _gateway.BufferedRouter;
+        //             _gateway.BufferedRouter = null;
+        //         }
+        //         break;
+        //     case DefaultMqCommands.Stop:
+        //         var instance = await _context.Set<Instance>().Where(i => i.Id == _gateway.Identity.Id).FirstOrDefaultAsync();
+        //         if (instance != null)
+        //         {
+        //             instance.Status = "offline";
+        //             await _context.SaveChangesAsync();
+        //         }
+        //         await _context.DisposeAsync();
+        //         Environment.Exit(0);
+        //         break;
+        // }
     }
 
 }
