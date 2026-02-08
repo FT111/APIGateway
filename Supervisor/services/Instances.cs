@@ -51,7 +51,7 @@ public static class Instances
                 Instances.Remove(instanceId);
                 await Messages.SendEventAsync(new SupervisorEvent
                 {
-                    Type = DefaultMqCommands.Stop,
+                    CommandKey = DefaultMqCommands.Stop, 
                     Value = instanceId.ToString()
                 }, instanceId);
             }

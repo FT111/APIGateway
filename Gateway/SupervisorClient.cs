@@ -48,7 +48,6 @@ public class SupervisorClient
         // Send a heartbeat to the Supervisor
         await _supervisor.SendEventAsync(new SupervisorEvent
         {
-            Type = DefaultMqCommands.Heartbeat,
             Value = _gateway.Identity.Id.ToString()
         });
     }
@@ -98,11 +97,10 @@ public class SupervisorClient
     private async Task ProcessCommandAsync(SupervisorEvent eventData)
     {
         // parse eventdata to a command key
-        Contracts.MqCommandKey.TryParse(eventData.Type, out var commandKey);
 
         try
         {
-            var cmd = _gateway.CommandManager.GetCommand(commandKey);
+            var cmd = _gateway.CommandManager.GetCommand(eventData.CommandKey);
             await cmd.Handler(_gateway, eventData.Value);
             return;
         }

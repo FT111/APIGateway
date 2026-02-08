@@ -1,6 +1,7 @@
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Supervisor.services;
+using static GatewayPluginContract.MQ.Contracts;
 
 namespace Supervisor.routes.Instances.Events;
 
@@ -20,15 +21,24 @@ public class Routes
                     {
                         await mqHandler.SendEventAsync(new SupervisorEvent
                         {
-                            Type = DefaultMqCommands.UpdateDeliveryUrl,
                             Value = packages.GetPluginStaticUrl()
                         });
                         packages.PackagePluginsAsync();
                         await Task.Delay(50);
                     }
+
+                    MqCommandKey commandKey;
+                    try
+                    {
+                        MqCommandKey.TryParse(e.Type, out commandKey);
+                    }
+                    catch (Exception)
+                    {
+                        return Results.BadRequest($"Invalid event name: {e.Type}");
+                    }
                     await mqHandler.SendEventAsync(new SupervisorEvent
                     {
-                        Type = e.Type,
+                        CommandKey = commandKey,
                         Value = e.Value
                     });
                 }

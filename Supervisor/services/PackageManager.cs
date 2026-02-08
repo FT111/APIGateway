@@ -33,7 +33,7 @@ public class PackageManager
             
             await _messageAdapter.SendEventAsync(new SupervisorEvent
             {
-                Type = DefaultMqCommands.Response,
+                CommandKey = DefaultMqCommands.Response,
                 Value = _packager.GetPluginStaticUrl()
             }, null, evt.CorrelationId);
         });

@@ -1,8 +1,11 @@
+using GatewayPluginContract.MQ;
+
 namespace GatewayPluginContract.Entities;
 
 public class SupervisorEvent : Entity
 {
-    public required string Type { get; set; }
+    // public required string Type { get; set; }
+    public Contracts.MqCommandKey CommandKey { get; set; }
     public string? Value { get; set; }
     public Guid CorrelationId { get; set; }
 }
