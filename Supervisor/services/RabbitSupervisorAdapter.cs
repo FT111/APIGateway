@@ -21,9 +21,9 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         {
             factory = new ConnectionFactory
             {
-                HostName = configuration["RabbitMq:Hostname"],
-                UserName = configuration["RabbitMq:Username"],
-                Password = configuration["RabbitMq:Password"],
+                HostName = configuration["Hostname"],
+                UserName = configuration["Username"],
+                Password = configuration["Password"],
                 Port = int.TryParse(configuration["Port"], out var port) ? port : 5672,
             };
         }
@@ -39,7 +39,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         _exchangeNames = new Dictionary<SupervisorEventType, string>
         {
             [SupervisorEventType.Command] = "commands",
-            [SupervisorEventType.Event] = "commands",
+            [SupervisorEventType.Event] = "events",
         };
 
 
@@ -66,6 +66,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var props = new BasicProperties()
         {
             CorrelationId = correlationId.ToString(),
+            Headers = new Dictionary<string, object?> {{"command", eventData.CommandKey.ToString()}}
         };
 
         await _channel.BasicPublishAsync(
@@ -135,7 +136,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
             
             var eventData = new SupervisorEvent
             {
-                Type = key,
+                CommandKey = key,
                 Value = message,
                 CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };

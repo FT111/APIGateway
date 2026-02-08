@@ -39,7 +39,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         _exchangeNames = new Dictionary<SupervisorEventType, string>
         {
             [SupervisorEventType.Command] = "commands",
-            [SupervisorEventType.Event] = "commands",
+            [SupervisorEventType.Event] = "events",
         };
 
 
@@ -66,6 +66,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var props = new BasicProperties()
         {
             CorrelationId = correlationId.ToString(),
+            Headers = new Dictionary<string, object?> {{"command", eventData.CommandKey.ToString()}}
         };
 
         await _channel.BasicPublishAsync(
@@ -135,7 +136,7 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
             
             var eventData = new SupervisorEvent
             {
-                Type = key,
+                CommandKey = key,
                 Value = message,
                 CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };
