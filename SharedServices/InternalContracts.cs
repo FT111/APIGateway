@@ -6,6 +6,6 @@ public static class InternalContracts
 {
     public class CommandDefinition : MqCommandSubmission
     {
-        public required string? PluginIdentifier { get; set; }
+        public string? PluginIdentifier { get; set; }
     }
 }

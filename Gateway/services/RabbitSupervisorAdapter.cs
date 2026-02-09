@@ -126,13 +126,16 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
             // Convert the received message to SupervisorEvent
             var body = ea.Body.ToArray();
             var message = System.Text.Encoding.UTF8.GetString(body);
+            Contracts.MqCommandKey key;
             
             if (ea.BasicProperties.Headers == null) return;
             ea.BasicProperties.Headers.TryGetValue("command", out var commandIdentifier);
-            if (commandIdentifier == null) return;
-            string commandIdentifierString = commandIdentifier.ToString() ?? throw new InvalidOperationException(); 
+            if (commandIdentifier != null)
+            {
+                string commandIdentifierString = System.Text.Encoding.UTF8.GetString((byte[])commandIdentifier) ?? throw new InvalidOperationException(); 
+                Contracts.MqCommandKey.TryParse(commandIdentifierString, out key);
+            }
 
-            Contracts.MqCommandKey.TryParse(commandIdentifierString, out var key);
             
             var eventData = new SupervisorEvent
             {
