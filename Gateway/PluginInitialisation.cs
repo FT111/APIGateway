@@ -11,9 +11,9 @@ public static class PluginInitialisation
         private HashSet<string> InitializedPlugins { get; set; } = [];
         private Dictionary<string, Dictionary<string, PluginConfigDefinition>> PluginConfigDefinitions { get; set; } =  new Dictionary<string, Dictionary<string, PluginConfigDefinition>>();
         private readonly DbContext _context;
-        private readonly PluginManager _manager;
+        private readonly IPluginManager _manager;
 
-        public PluginConfigManager(DbContext context, PluginManager manager)
+        public PluginConfigManager(DbContext context, IPluginManager manager)
         {
             _context = context;
             _manager = manager;

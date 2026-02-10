@@ -3,6 +3,7 @@ using System.IO.Pipelines;
 using System.Linq.Expressions;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Serialization;
+using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using GatewayPluginContract.MQ;
 using Microsoft.EntityFrameworkCore;
@@ -192,6 +193,11 @@ public interface IPresetConfigValuePrompts
 public interface IPluginServiceRegistrar
 {
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
+    void RegisterServiceWithTypeDef(Type serviceInstanceType, IPlugin parentPlugin, object serviceInstance, ServiceTypes serviceType);
+    IEnumerable<T> GetServicesByType<T>(ServiceTypes serviceType) where T : IService;
+    ServiceContainer<T> GetServiceByName<T>(string name) where T : IService;
+    void RegisterInternalServiceWithRuntimeType(Type serviceInstanceType, object serviceInstance, string identifier);
+    void Reset();
 }
 
 public interface ITelemetryRegistrar
@@ -306,6 +312,7 @@ public interface IPluginPackageManager : IService
 
 public interface IPluginManager
 {
+    public List<IPlugin> Plugins { get; }
     public Task LoadPluginsAsync(string path);
     public void AddPluginLoadStep(Func<IPlugin, Task> step);
     public List<IPlugin> GetPlugins { get; }
@@ -316,6 +323,9 @@ public interface IPluginManager
     public Task DownloadAndInstallPluginAsync(string identifier);
 
     public Task RemovePluginAsync(string identifier);
+
+    public IPluginServiceRegistrar Registrar { get; }
+
 }
 
 public interface IPLuginInitialiser

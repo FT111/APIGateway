@@ -21,9 +21,9 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         {
             factory = new ConnectionFactory
             {
-                HostName = configuration["RabbitMq:Hostname"],
-                UserName = configuration["RabbitMq:Username"],
-                Password = configuration["RabbitMq:Password"],
+                HostName = configuration["Hostname"],
+                UserName = configuration["Username"],
+                Password = configuration["Password"],
                 Port = int.TryParse(configuration["Port"], out var port) ? port : 5672,
             };
         }

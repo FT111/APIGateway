@@ -1,5 +1,7 @@
 using GatewayPluginContract;
 using Microsoft.EntityFrameworkCore;
+using SharedServices;
+using SharedServices.Commands;
 using Supervisor.auth;
 using Supervisor.routes;
 using Supervisor.services;
@@ -11,6 +13,7 @@ public static class CoreServiceLoader
 {
     public static void LoadFromConfiguration(WebApplicationBuilder builder)
     {
+        // transform 
         var pluginManager = new PluginManager(builder.Configuration);
         pluginManager.LoadPluginsAsync("services/plugins");
         pluginManager.LoadInternalServices("Supervisor.services");
@@ -53,6 +56,11 @@ public static class CoreServiceLoader
                 storeProvider.CreateStore().GetRepoFactory());
         });
         builder.Services.AddSingleton<AuthHandler>(new AuthHandler(builder.Configuration));
+        
+        var cmdManager = new CommandManager();
+        InternalCommands.ConfigureCommandManager(cmdManager);
+        cmdManager.ConfigurePluginManager(pluginManager);
+        builder.Services.AddSingleton(cmdManager);
         
         builder.Services.AddSingleton<SupervisorAdapter>(pluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance
             ?? throw new InvalidOperationException("SupervisorClient service not found."));

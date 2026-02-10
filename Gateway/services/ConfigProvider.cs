@@ -1,6 +1,7 @@
 using GatewayPluginContract;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 using GatewayPluginContract.Entities;
+using SharedServices;
 
 namespace Gateway.services;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ public class ConfigProvider : IConfigurationsProvider
 {
     private readonly IConfiguration _configuration;
     
-    public ConfigProvider(IConfiguration configuration, PluginManager pluginManager)
+    public ConfigProvider(IConfiguration configuration, IPluginManager pluginManager)
     {
         _configuration = configuration;
         _pluginManager = pluginManager;
@@ -33,10 +34,10 @@ public class ConfigProvider : IConfigurationsProvider
     private Dictionary<string, ICollection<PipeService>> _endpointPipeServices = new Dictionary<string, ICollection<PipeService>>();
     
     private Repositories _dataRepos;
-    private PluginManager _pluginManager;
+    private IPluginManager _pluginManager;
 
     private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, ServiceFailurePolicies onFailure, List<PipeProcessorContainer> processorList,
-        PluginServiceRegistrar registry)
+        IPluginServiceRegistrar registry)
     {
         try
         {
