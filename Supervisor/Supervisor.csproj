@@ -30,6 +30,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\GatewayPluginContract\GatewayPluginContract.csproj" />
+      <ProjectReference Include="..\SharedServices\SharedServices.csproj" />
     </ItemGroup>
 
     <ItemGroup>

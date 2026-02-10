@@ -161,21 +161,22 @@ public class GatewayBuilder(IConfiguration configuration)
         PluginInitManager = new PluginInitialisation.PluginConfigManager(StoreFactory.CreateStore().Context, PluginManager);
         CacheManager = new CacheManager(StoreFactory);
         CommandManager = new CommandManager();
+        InternalCommands.ConfigureCommandManager(CommandManager);
     }
 
     public void SetupBaseComponents(IConfigurationSection coreServices)
     {
-        var baseComponents = new[] {"Store", "Supervisor", "TaskQueue", "ConfigurationProvider"};
+        var baseComponents = new[] {"Store", "MessageAdapter", "TaskQueue", "ConfigurationProvider"};
         Dictionary<string, string> serviceIdentifiers = new Dictionary<string, string>();
         
         foreach (var service in baseComponents)
         {
-            serviceIdentifiers.Add(service, coreServices[service] ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
+            serviceIdentifiers.Add(service, coreServices.GetSection(service)["Identifier"] ?? throw new InvalidOperationException($"Service '{service}' not found in configuration."));
         }
         
         StoreFactory = PluginManager.Registrar.GetServiceByName<StoreFactory>(serviceIdentifiers["Store"]).Instance
                        ?? throw new InvalidOperationException("StoreFactory service not found.");
-        SupervisorAdapter = PluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["Supervisor"]).Instance
+        SupervisorAdapter = PluginManager.Registrar.GetServiceByName<SupervisorAdapter>(serviceIdentifiers["MessageAdapter"]).Instance
                             ?? throw new InvalidOperationException("SupervisorClient service not found.");
         LocalTaskQueue = PluginManager.Registrar.GetServiceByName<LocalTaskQueue>(serviceIdentifiers["TaskQueue"]).Instance
                          ?? throw new InvalidOperationException("TaskQueue service not found.");
