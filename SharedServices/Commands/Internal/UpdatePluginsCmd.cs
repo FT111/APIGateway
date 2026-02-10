@@ -4,10 +4,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SharedServices.Commands.Internal;
 
-public class UpdatePlugins : InternalContracts.CommandDefinition
+public class UpdatePluginsCmd
 {
-    private async Task<bool> Handle(DbContext context, GatewayBase gateway)
+    public static readonly MqCommandSubmission UpdatePlugins = new()
     {
+        Identifier = "plugins.update",
+        Handler = async (gateway, param) =>
+        {
+            var success = await new UpdatePluginsCmd().Handle(gateway, param);
+        }
+    };
+
+    
+    public async Task<bool> Handle( GatewayBase gateway, string? param)
+    {
+        var context = gateway.Store.CreateStore().Context;
+        
         // Reload plugins to ensure the latest state - Then verify 
         await gateway.PluginManager.LoadPluginsAsync("services/plugins");
         var pluginVerification =

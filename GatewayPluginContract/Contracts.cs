@@ -217,6 +217,8 @@ public class MqCommandSubmission
 {
     public required string Identifier { get; init; }
     public required Func<GatewayBase, string?, Task> Handler { get; init; }
+    public Task HandleAsync(GatewayBase gateway, string? param) => Handler(gateway, param);
+
 }
 
 public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
