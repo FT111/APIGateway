@@ -4,19 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SharedServices.Commands.Internal;
 
-public class UpdatePluginsCmd
+public class UpdatePluginsCmd : InternalContracts.CommandDefinition
 {
-    public static readonly MqCommandSubmission UpdatePlugins = new()
+    public UpdatePluginsCmd()
     {
-        Identifier = "plugins.update",
-        Handler = async (gateway, param) =>
-        {
-            var success = await new UpdatePluginsCmd().Handle(gateway, param);
-        }
-    };
+        Identifier = "plugins.update";
+        Handler = async (gateway, param) => await Handle(gateway, param);
+    }
 
     
-    public async Task<bool> Handle( GatewayBase gateway, string? param)
+    public static async Task Handle( GatewayBase gateway, string? param)
     {
         var context = gateway.Store.CreateStore().Context;
         
@@ -28,7 +25,7 @@ public class UpdatePluginsCmd
 
         if (pluginVerification.IsValid)
         {
-            return true;
+            return;
         }
         
         try
@@ -63,9 +60,6 @@ public class UpdatePluginsCmd
         {
             
         }
-    
-
-        return false;
     }
 
 }

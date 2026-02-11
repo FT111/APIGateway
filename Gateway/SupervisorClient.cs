@@ -104,7 +104,7 @@ public class SupervisorClient
             await cmd.Handler(_gateway, eventData.Value);
             return;
         }
-        catch (Exception ex)
+        catch (KeyNotFoundException ex)
         {
             // command isn't registered
         }

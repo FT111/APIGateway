@@ -10,15 +10,21 @@ public static class InternalCommands
     {
         var internalCommandType = typeof(InternalContracts.CommandDefinition);
         var commandDefinitions = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => type.GetCustomAttributes(internalCommandType, true).Length > 0)
+            .SelectMany(assembly => assembly.GetTypes());
+        commandDefinitions = commandDefinitions
+            .Where(type => !type.IsAbstract && type.IsAssignableTo(internalCommandType))
             .ToList();
+
 
         foreach (var commandDefinition in commandDefinitions)
         {
+            if (commandDefinition.Name == "CommandDefinition")
+            {
+                continue; // Skip the base CommandDefinition class
+            }
             if (Activator.CreateInstance(commandDefinition) is InternalContracts.CommandDefinition commandInstance)
             {
-                commandManager.RegisterCommand(commandInstance);
+                commandManager.RegisterInternalCommand(commandInstance);
             }
             else
             {
