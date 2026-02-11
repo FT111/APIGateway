@@ -3,7 +3,7 @@ using GatewayPluginContract;
 namespace Supervisor;
 
 
-public class PluginManager(IConfiguration configuration) 
+public class PluginManager(IConfiguration configuration)
 {
     private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     public List<IPlugin> Plugins = [];
@@ -113,7 +113,7 @@ public class PluginManager(IConfiguration configuration)
         return Task.CompletedTask;
     }
     
-public class PluginServiceRegistrar : IPluginServiceRegistrar
+public class PluginServiceRegistrar
 {
     private readonly Dictionary<string, ServiceContainer<IService>> _services = new();
     public readonly List<Type> UnregisteredCoreServices = [];
