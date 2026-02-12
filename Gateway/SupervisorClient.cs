@@ -102,10 +102,13 @@ public class SupervisorClient
         {
             var cmd = _gateway.CommandManager.GetCommand(eventData.CommandKey);
             await cmd.Handler(_gateway, eventData.Value);
+            Console.WriteLine($"Processed command {eventData.CommandKey} with value {eventData.Value}");
             return;
         }
         catch (KeyNotFoundException ex)
         {
+            Console.WriteLine($"Received unknown command {eventData.CommandKey}: {ex.Message}");
+            Console.WriteLine($"Available commands: {string.Join(", ", _gateway.CommandManager._commands)}");
             // command isn't registered
         }
 

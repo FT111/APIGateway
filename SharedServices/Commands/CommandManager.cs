@@ -6,7 +6,7 @@ namespace SharedServices.Commands;
 public class CommandManager
 {
     private const string InternalProtectedString = "internal.";
-    private readonly Dictionary<Contracts.MqCommandKey, InternalContracts.CommandDefinition> _commands = new();
+    public readonly Dictionary<Contracts.MqCommandKey, InternalContracts.CommandDefinition> _commands = new();
     
     public void ConfigurePluginManager(IPluginManager pluginManager)
     {
