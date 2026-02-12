@@ -290,6 +290,17 @@ public enum SupervisorEventType
     Event
 }
 
+public class RequestPipelineBase
+{
+    public IRouteTrie Router;
+}
+
+public interface IRouteTrie
+{
+    void Insert(string path, Endpoint endpoint, Dictionary<string, Dictionary<string, string>> collatedPluginConfigs);
+    RouteNode? FindClosest(string path);
+}
+
 public static class DefaultMqCommands
 {
     public static readonly Contracts.MqCommandKey Restart = Contracts.MqCommandKey.Internal("restart");
@@ -353,6 +364,10 @@ public abstract class GatewayBase
     public ILogger? Logger { get; set; }
     public IPluginManager PluginManager { get; set; } = null!;
     public IPLuginInitialiser PluginInitManager { get; set;  }
+    public RequestPipelineBase Pipe { get; set; } = null!;
+    public abstract Task<IRouteTrie> CreateRouterAsync();
+    
+    
 
     protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue)
     {

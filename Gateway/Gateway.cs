@@ -47,7 +47,7 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
         await TaskQueueHandler.ExecuteAsync(cancellationToken).ConfigureAwait(false);
     }
     
-    public async Task<RouteTrie> CreateRouterAsync()
+    public override async Task<IRouteTrie> CreateRouterAsync()
     {
         return await RouterFactory.BuildRouteTrie(Store.CreateStore().Context, ConfigurationsProvider);
     }

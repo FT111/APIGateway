@@ -7,7 +7,9 @@ using Endpoint = GatewayPluginContract.Entities.Endpoint;
 
 namespace Gateway
 {
-    public class RouteTrie
+
+
+    public class RouteTrie : IRouteTrie
     {
         private RouteNode _root = new RouteNode { Segment = "" };
 

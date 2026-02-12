@@ -14,8 +14,7 @@ public interface IRequestProcessor : IService
 
 }
 
-
-public class RequestPipeline
+public class RequestPipeline : RequestPipelineBase
 {
     private List<PipeProcessorContainer> _preProcessors;
     private List<PipeProcessorContainer> _postProcessors;
@@ -25,7 +24,6 @@ public class RequestPipeline
     private readonly CacheManager _cacheManager;
     private readonly IBackgroundQueue _backgroundQueue;
     private readonly Identity.Identity _instanceIdentity;
-    public RouteTrie Router;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
