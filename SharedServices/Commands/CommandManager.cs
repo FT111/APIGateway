@@ -36,8 +36,10 @@ public class CommandManager
     
     public void RegisterCommand(InternalContracts.CommandDefinition command)
     {
-        var commandKey = command.PluginIdentifier + "." + command.Identifier;
-        if (commandKey.StartsWith(InternalProtectedString))
+        if (command.PluginIdentifier == null) throw new ArgumentNullException(nameof(command.PluginIdentifier));
+        
+        var commandKey = Contracts.MqCommandKey.New(command.PluginIdentifier, command.Identifier);
+        if (commandKey.ToString().StartsWith(InternalProtectedString))
         {
             throw new InvalidOperationException($"{command.PluginIdentifier} is attempting to register command '{commandKey}', which is reserved for internal commands.");
         }

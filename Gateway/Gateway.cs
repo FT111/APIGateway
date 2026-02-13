@@ -11,18 +11,17 @@ namespace Gateway;
 // change: inherit the abstract base and pass matching args to base ctor
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
     Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager)
-    : GatewayBase(configuration, store, localTaskQueue)
+    : GatewayBase(configuration, store, localTaskQueue, pluginManager)
 {
     public new LocalTaskQueue LocalTaskQueue {
         get => (LocalTaskQueue)base.LocalTaskQueue;
         set => base.LocalTaskQueue = value;
     }
-
+    
     public IConfigurationsProvider ConfigurationsProvider { get; set; } = configurationsProvider;
-    public new PluginManager PluginManager { get; set; } = pluginManager;
+    public new IPluginManager PluginManager { get; set; } = pluginManager;
     public CacheManager CacheManager { get; set; } = cacheManager;
     public Identity.Identity Identity { get; init; } = identity;
-    public new IPLuginInitialiser PluginInitManager { get; init; } = pluginInitManager!;
     // Logger is inherited from GatewayBase
     public RouteTrie? BufferedRouter { get; set; }
     
@@ -151,7 +150,7 @@ public class GatewayBuilder(IConfiguration configuration)
 
         SetupPluginManager();
         
-        await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "service/plugins");
+        await PluginManager.LoadPluginsAsync(configuration["PluginDirectory"] ?? "services\\plugins");
         return await Build();
     }
 

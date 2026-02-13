@@ -8,12 +8,13 @@ public class UpdateRoutes : InternalContracts.CommandDefinition
 {
     public UpdateRoutes()
     {
+        PluginIdentifier = "internal";
         Identifier = "routes.update";
         Handler = async (gateway, param) => await Handle(gateway, param);
     }
 
     
-    public static async Task Handle( GatewayBase gateway, string? param)
+    public async Task Handle( GatewayBase gateway, string? param)
     {
         gateway.Pipe.Router = await gateway.CreateRouterAsync();
     }

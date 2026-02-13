@@ -8,12 +8,13 @@ public class UpdatePluginsCmd : InternalContracts.CommandDefinition
 {
     public UpdatePluginsCmd()
     {
+        PluginIdentifier = "internal";
         Identifier = "plugins.update";
         Handler = async (gateway, param) => await Handle(gateway, param);
     }
 
     
-    public static async Task Handle( GatewayBase gateway, string? param)
+    public async Task Handle( GatewayBase gateway, string? param)
     {
         var context = gateway.Store.CreateStore().Context;
         
