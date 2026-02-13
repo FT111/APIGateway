@@ -10,8 +10,8 @@ namespace Gateway;
 
 // change: inherit the abstract base and pass matching args to base ctor
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
-    Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager)
-    : GatewayBase(configuration, store, localTaskQueue, pluginManager)
+    Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager, RequestPipelineBase requestPipeline)
+    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline)
 {
     public new LocalTaskQueue LocalTaskQueue {
         get => (LocalTaskQueue)base.LocalTaskQueue;
@@ -30,14 +30,14 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     internal Func<string, Func<SupervisorEvent, Task>, Task> AddCustomSupervisorHandler = null!;
     internal Func<SupervisorEvent, Guid?, Guid?, Task> SendSupervisorEvent = null!;
 
-    public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder()
-        .WithConfigProvider(configurationsProvider)
-        .WithRepoProvider(store.CreateStore().GetRepoFactory())
-        .WithBackgroundQueue(localTaskQueue)
-        .WithCacheProvider(cacheManager)
-        .WithRouterFactory(RouterFactory.BuildRouteTrie)
-        .WithIdentity(identity)
-        .Build();
+    // public RequestPipeline Pipe { get; set; } = new RequestPipelineBuilder()
+    //     .WithConfigProvider(configurationsProvider)
+    //     .WithRepoProvider(store.CreateStore().GetRepoFactory())
+    //     .WithBackgroundQueue(localTaskQueue)
+    //     .WithCacheProvider(cacheManager)
+    //     .WithRouterFactory(RouterFactory.BuildRouteTrie)
+    //     .WithIdentity(identity)
+    //     .Build();
 
     public TaskQueueHandler TaskQueueHandler { get; set; } = new TaskQueueHandler(store, localTaskQueue);
     
@@ -79,8 +79,18 @@ public class GatewayBuilder(IConfiguration configuration)
     public async Task<GatewayBuild> Build()
     {
         var identity = new Identity.Identity(_configuration);
+
+        var pipe = new RequestPipelineBuilder()
+            .WithConfigProvider(ConfigurationsProvider)
+            .WithRepoProvider(StoreFactory.CreateStore().GetRepoFactory())
+            .WithBackgroundQueue(LocalTaskQueue)
+            .WithCacheProvider(CacheManager)
+            .WithRouterFactory(RouterFactory.BuildRouteTrie)
+            .WithIdentity(identity)
+            .Build();
+        
         var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider,
-            PluginManager, identity, PluginInitManager, CacheManager, CommandManager);
+            PluginManager, identity, PluginInitManager, CacheManager, CommandManager, pipe);
         gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));

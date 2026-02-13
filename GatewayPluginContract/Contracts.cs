@@ -369,12 +369,13 @@ public abstract class GatewayBase
     
     
 
-    protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, IPluginManager pluginManager)
+    protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, IPluginManager pluginManager, RequestPipelineBase requestPipeline)
     {
         BaseConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         Store = store ?? throw new ArgumentNullException(nameof(store));
         LocalTaskQueue = localTaskQueue ?? throw new ArgumentNullException(nameof(localTaskQueue));
         PluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
+        Pipe = requestPipeline ?? throw new ArgumentNullException(nameof(requestPipeline));
     }
 
     // Small helper so concrete implementations can extend logger behaviour
