@@ -100,16 +100,19 @@ public class SupervisorClient
 
         try
         {
+            _gateway.Logger?.LogInformation($"Received supervisor command: {eventData.CommandKey} with value: {eventData.Value} (Corr. ID: {eventData.CorrelationId}");
             var cmd = _gateway.CommandManager.GetCommand(eventData.CommandKey);
             await cmd.Handler(_gateway, eventData.Value);
-            Console.WriteLine($"Processed command {eventData.CommandKey} with value {eventData.Value}");
-            return;
+            _gateway.Logger?.LogInformation($"Handled supervisor command: {eventData.CommandKey} (Corr. ID {eventData.CorrelationId})");
         }
         catch (KeyNotFoundException ex)
         {
-            Console.WriteLine($"Received unknown command {eventData.CommandKey}: {ex.Message}");
-            Console.WriteLine($"Available commands: {string.Join(", ", _gateway.CommandManager._commands)}");
+            _gateway.Logger?.LogError(ex, $"Received unknown supervisor command: {eventData.CommandKey} (Corr. ID {eventData.CorrelationId})");
             // command isn't registered
+        }
+        catch (Exception ex)
+        {
+            _gateway.Logger?.LogError(ex, $"Error processing supervisor command {eventData.CommandKey} (Corr. ID {eventData.CorrelationId})");
         }
 
         
