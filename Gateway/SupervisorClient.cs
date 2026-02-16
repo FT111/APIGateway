@@ -119,21 +119,8 @@ public class SupervisorClient
         // switch (eventData.Type)
         // {
         //     case DefaultMqCommands.Restart:
-        //         var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-        //         var newProcess = new System.Diagnostics.ProcessStartInfo
-        //         {
-        //             FileName = currentProcess.MainModule?.FileName ?? throw new InvalidOperationException("Cannot determine current process file name"),
-        //             Arguments = string.Join(' ', Environment.GetCommandLineArgs().Skip(1)),
-        //             UseShellExecute = true,
-        //             WindowStyle = ProcessWindowStyle.Normal
-        //         };
-        //         System.Diagnostics.Process.Start(newProcess);
-        //         await Task.Delay(1000); // Give the new process a moment to start
-        //         Environment.Exit(0);
-        //         break;
+
         //     case DefaultMqCommands.UpdateRoutes:
-        //         _gateway.Pipe.Router = await _gateway.CreateRouterAsync();
-        //         break;
         //     case DefaultMqCommands.PreloadRoutes:
         //         _gateway.BufferedRouter = await _gateway.CreateRouterAsync();
         //         await _supervisor.SendEventAsync(new SupervisorEvent
