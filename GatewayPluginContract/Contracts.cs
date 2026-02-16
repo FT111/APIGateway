@@ -290,9 +290,10 @@ public enum SupervisorEventType
     Event
 }
 
-public class RequestPipelineBase
+public abstract class RequestPipelineBase
 {
     public IRouteTrie Router;
+    public abstract Task ProcessAsync(RequestContext context, HttpContext httpContext);
 }
 
 public interface IRouteTrie
