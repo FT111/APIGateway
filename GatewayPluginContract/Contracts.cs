@@ -292,8 +292,24 @@ public enum SupervisorEventType
 
 public abstract class RequestPipelineBase
 {
-    public IRouteTrie Router;
+    public IRouter Router;
     public abstract Task ProcessAsync(RequestContext context, HttpContext httpContext);
+}
+
+public interface IRouter
+{
+    IRouteTrie CurrentTrie { get; }
+    IRouteTrie BufferedTrie { get; }
+    void BufferNewTrie(IRouteTrie newTrie);
+    void SwapTries();
+    void SwapTriesAtTime(DateTime swapTime);
+}
+
+public interface IRouterFactory
+{
+    Task<IRouteTrie> BuildRouteTrie();
+    Task<IRouter> BuildRouterAsync();
+    void AddLogger(ILogger logger);
 }
 
 public interface IRouteTrie
@@ -365,18 +381,20 @@ public abstract class GatewayBase
     public ILogger? Logger { get; set; }
     public IPluginManager PluginManager { get; set; } = null!;
     public IPLuginInitialiser PluginInitManager { get; set;  }
+    public SupervisorAdapter SupervisorAdapter { get; set; }
     public RequestPipelineBase Pipe { get; set; } = null!;
-    public abstract Task<IRouteTrie> CreateRouterAsync();
-    
+    public IRouterFactory RouterFactory { get; set; }
     
 
-    protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, IPluginManager pluginManager, RequestPipelineBase requestPipeline)
+    protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, 
+        IPluginManager pluginManager, RequestPipelineBase requestPipeline, IRouterFactory routerFactory)
     {
         BaseConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         Store = store ?? throw new ArgumentNullException(nameof(store));
         LocalTaskQueue = localTaskQueue ?? throw new ArgumentNullException(nameof(localTaskQueue));
         PluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         Pipe = requestPipeline ?? throw new ArgumentNullException(nameof(requestPipeline));
+        RouterFactory = routerFactory ?? throw new ArgumentNullException(nameof(routerFactory));
     }
 
     // Small helper so concrete implementations can extend logger behaviour

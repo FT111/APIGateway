@@ -10,8 +10,9 @@ namespace Gateway;
 
 // change: inherit the abstract base and pass matching args to base ctor
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
-    Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager, RequestPipelineBase requestPipeline)
-    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline)
+    Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager, RequestPipelineBase requestPipeline,
+    IRouterFactory routerFactory)
+    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline, routerFactory)
 {
     public new LocalTaskQueue LocalTaskQueue {
         get => (LocalTaskQueue)base.LocalTaskQueue;
@@ -23,7 +24,6 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
     public CacheManager CacheManager { get; set; } = cacheManager;
     public Identity.Identity Identity { get; init; } = identity;
     // Logger is inherited from GatewayBase
-    public RouteTrie? BufferedRouter { get; set; }
     
     public CommandManager CommandManager { get; set; } = commandManager;
 
@@ -46,15 +46,16 @@ public class Gateway(IConfiguration configuration, StoreFactory store, LocalTask
         await TaskQueueHandler.ExecuteAsync(cancellationToken).ConfigureAwait(false);
     }
     
-    public override async Task<IRouteTrie> CreateRouterAsync()
-    {
-        return await RouterFactory.BuildRouteTrie(Store.CreateStore().Context, ConfigurationsProvider);
-    }
+    // public override async Task<IRouteTrie> CreateRouterAsync()
+    // {
+    //     return await RouterFactory.BuildRouteTrie(Store.CreateStore().Context, ConfigurationsProvider);
+    // }
     
-    public void AddLogger(ILogger logger)
+    public new void AddLogger(ILogger logger)
     {
         base.AddLogger(logger); // set base logger
         TaskQueueHandler.AddLogger(logger);
+        RouterFactory.AddLogger(logger);
     }
 }
 
@@ -75,22 +76,25 @@ public class GatewayBuilder(IConfiguration configuration)
     private PluginInitialisation.PluginConfigManager PluginInitManager { get; set; } = null!;
     private CommandManager CommandManager { get; set; } = null!;
     private PluginManager PluginManager { get; set; } = new PluginManager(configuration);
+    private RouterFactory RouterFactory { get; set; } = null!;
     
     public async Task<GatewayBuild> Build()
     {
         var identity = new Identity.Identity(_configuration);
+        
+        RouterFactory = new RouterFactory(StoreFactory.CreateStore().Context, ConfigurationsProvider);
 
         var pipe = new RequestPipelineBuilder()
             .WithConfigProvider(ConfigurationsProvider)
             .WithRepoProvider(StoreFactory.CreateStore().GetRepoFactory())
             .WithBackgroundQueue(LocalTaskQueue)
             .WithCacheProvider(CacheManager)
-            .WithRouterFactory(RouterFactory.BuildRouteTrie)
+            .WithRouter(await RouterFactory.BuildRouterAsync())
             .WithIdentity(identity)
             .Build();
         
         var gateway = new Gateway(_configuration, StoreFactory, LocalTaskQueue, ConfigurationsProvider,
-            PluginManager, identity, PluginInitManager, CacheManager, CommandManager, pipe);
+            PluginManager, identity, PluginInitManager, CacheManager, CommandManager, pipe, RouterFactory);
         gateway.StartAsync();
         var supervisorClient = new SupervisorClient(SupervisorAdapter, gateway)
             ?? throw new ArgumentNullException(nameof(SupervisorAdapter));

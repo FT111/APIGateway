@@ -16,7 +16,7 @@ public class UpdateRoutes : InternalContracts.CommandDefinition
     
     public async Task Handle( GatewayBase gateway, string? param)
     {
-        gateway.Pipe.Router = await gateway.CreateRouterAsync();
+        gateway.Pipe.Router.BufferNewTrie(await gateway.RouterFactory.BuildRouteTrie());
+        gateway.Pipe.Router.SwapTries();
     }
-
 }
