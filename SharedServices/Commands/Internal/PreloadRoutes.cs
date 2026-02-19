@@ -18,10 +18,10 @@ public class PreloadRoutes : InternalContracts.CommandDefinition
     public async Task Handle(GatewayBase gateway, string? param)
     {
         gateway.Pipe.Router.BufferNewTrie(await gateway.RouterFactory.BuildRouteTrie());
-        await gateway.SupervisorAdapter.SendEventAsync(new SupervisorEvent
-        {   
-            CommandKey = DefaultMqCommands.Response,
-            Value = "preload_complete"
-        });
+        // await gateway.SupervisorAdapter.SendEventAsync(new SupervisorEvent
+        // {   
+        //     CommandKey = DefaultMqCommands.Response,
+        //     Value = "preload_complete"
+        // });
     }
 }
