@@ -122,12 +122,7 @@ public class SupervisorClient
 
         //     case DefaultMqCommands.UpdateRoutes:
         //     case DefaultMqCommands.PreloadRoutes:
-        //         _gateway.BufferedRouter = await _gateway.CreateRouterAsync();
-        //         await _supervisor.SendEventAsync(new SupervisorEvent
-        //         {   
-        //             Type = DefaultMqCommands.Response,
-        //             Value = "preload_complete"
-        //         });
+
         //         break;
         //     case DefaultMqCommands.ApplyBufferedRoutes:
         //         if (_gateway.BufferedRouter != null)

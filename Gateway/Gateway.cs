@@ -12,7 +12,7 @@ namespace Gateway;
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
     Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager, RequestPipelineBase requestPipeline,
     IRouterFactory routerFactory)
-    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline, routerFactory)
+    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline, routerFactory, pluginInitManager)
 {
     public new LocalTaskQueue LocalTaskQueue {
         get => (LocalTaskQueue)base.LocalTaskQueue;

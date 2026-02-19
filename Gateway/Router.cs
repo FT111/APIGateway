@@ -186,6 +186,7 @@ namespace Gateway
             CurrentTrie = BufferedTrie;
             BufferedTrie = null;
         }
+        
 
         public void SwapTriesAtTime(DateTime swapTime)
         {

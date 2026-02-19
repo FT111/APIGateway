@@ -381,13 +381,13 @@ public abstract class GatewayBase
     public ILogger? Logger { get; set; }
     public IPluginManager PluginManager { get; set; } = null!;
     public IPLuginInitialiser PluginInitManager { get; set;  }
-    public SupervisorAdapter SupervisorAdapter { get; set; }
     public RequestPipelineBase Pipe { get; set; } = null!;
     public IRouterFactory RouterFactory { get; set; }
     
 
     protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, 
-        IPluginManager pluginManager, RequestPipelineBase requestPipeline, IRouterFactory routerFactory)
+        IPluginManager pluginManager, RequestPipelineBase requestPipeline, IRouterFactory routerFactory, 
+        IPLuginInitialiser pluginInitManager)
     {
         BaseConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         Store = store ?? throw new ArgumentNullException(nameof(store));
@@ -395,6 +395,7 @@ public abstract class GatewayBase
         PluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         Pipe = requestPipeline ?? throw new ArgumentNullException(nameof(requestPipeline));
         RouterFactory = routerFactory ?? throw new ArgumentNullException(nameof(routerFactory));
+        PluginInitManager = pluginInitManager ?? throw new ArgumentNullException(nameof(pluginInitManager));
     }
 
     // Small helper so concrete implementations can extend logger behaviour
