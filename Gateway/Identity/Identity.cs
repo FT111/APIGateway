@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
@@ -6,15 +7,17 @@ using Org.BouncyCastle.Utilities;
 
 namespace Gateway.Identity;
 
+
+
 /// <summary>
 /// Uses RSA key pairs to sign requests with the supervisor
 /// Generates keys if none found in .pem
 /// </summary>
 /// <param name="configuration"></param>
-public class Identity
+public class Identity : IIdentity
 {
     private readonly RSA _rsa;
-    public Guid Id;
+    public Guid Id { get; }
 
     public Identity(IConfiguration configuration)
     {

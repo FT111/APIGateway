@@ -1,4 +1,3 @@
-using System.ComponentModel.Design;
 using Gateway.services;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
@@ -12,7 +11,7 @@ namespace Gateway;
 public class Gateway(IConfiguration configuration, StoreFactory store, LocalTaskQueue localTaskQueue, IConfigurationsProvider configurationsProvider, PluginManager pluginManager, 
     Identity.Identity identity, PluginInitialisation.PluginConfigManager pluginInitManager, CacheManager cacheManager, CommandManager commandManager, RequestPipelineBase requestPipeline,
     IRouterFactory routerFactory)
-    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline, routerFactory, pluginInitManager)
+    : GatewayBase(configuration, store, localTaskQueue, pluginManager, requestPipeline, routerFactory, pluginInitManager, identity)
 {
     public new LocalTaskQueue LocalTaskQueue {
         get => (LocalTaskQueue)base.LocalTaskQueue;

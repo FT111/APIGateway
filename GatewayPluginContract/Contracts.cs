@@ -370,11 +370,18 @@ public class PluginVerificationResult
 }
 
 
-
+public interface IIdentity
+{
+    Guid Id { get; }
+    string Sign(string data);
+    byte[] GetPublicKey();
+    Instance ToInstance();
+}
 
 public abstract class GatewayBase
 {
     public IConfiguration BaseConfiguration { get; }
+    public IIdentity Identity { get; init; }
     public StoreFactory Store { get; }
     // Use the contract interface for background queue
     public IBackgroundQueue LocalTaskQueue { get; set; }
@@ -387,7 +394,7 @@ public abstract class GatewayBase
 
     protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, 
         IPluginManager pluginManager, RequestPipelineBase requestPipeline, IRouterFactory routerFactory, 
-        IPLuginInitialiser pluginInitManager)
+        IPLuginInitialiser pluginInitManager, IIdentity identity)
     {
         BaseConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         Store = store ?? throw new ArgumentNullException(nameof(store));
@@ -396,6 +403,7 @@ public abstract class GatewayBase
         Pipe = requestPipeline ?? throw new ArgumentNullException(nameof(requestPipeline));
         RouterFactory = routerFactory ?? throw new ArgumentNullException(nameof(routerFactory));
         PluginInitManager = pluginInitManager ?? throw new ArgumentNullException(nameof(pluginInitManager));
+        Identity = identity ?? throw new ArgumentNullException(nameof(identity));
     }
 
     // Small helper so concrete implementations can extend logger behaviour
