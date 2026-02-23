@@ -125,12 +125,7 @@ public class SupervisorClient
 
         //         break;
         //     case DefaultMqCommands.ApplyBufferedRoutes:
-        //         if (_gateway.BufferedRouter != null)
-        //         {
-        //             _gateway.Pipe.Router = _gateway.BufferedRouter;
-        //             _gateway.BufferedRouter = null;
-        //         }
-        //         break;
+        //        
         //     case DefaultMqCommands.Stop:
         //         var instance = await _context.Set<Instance>().Where(i => i.Id == _gateway.Identity.Id).FirstOrDefaultAsync();
         //         if (instance != null)
