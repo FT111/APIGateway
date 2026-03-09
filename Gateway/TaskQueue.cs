@@ -6,6 +6,7 @@ namespace Gateway;
 public class TaskQueueHandler(StoreFactory storeProvider, LocalTaskQueue localTaskQueue)
 {
     private ILogger? _logger;
+    
     internal async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)

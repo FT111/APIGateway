@@ -4,6 +4,7 @@ using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
+using IRouter = GatewayPluginContract.IRouter;
 
 namespace Gateway;
 
@@ -14,8 +15,7 @@ public interface IRequestProcessor : IService
 
 }
 
-
-public class RequestPipeline
+public class RequestPipeline : RequestPipelineBase
 {
     private List<PipeProcessorContainer> _preProcessors;
     private List<PipeProcessorContainer> _postProcessors;
@@ -25,7 +25,6 @@ public class RequestPipeline
     private readonly CacheManager _cacheManager;
     private readonly IBackgroundQueue _backgroundQueue;
     private readonly Identity.Identity _instanceIdentity;
-    public RouteTrie Router;
 
     public RequestPipeline( GatewayPluginContract.IRequestForwarder? forwarder,
         List<PipeProcessorContainer> preProcessors,
@@ -33,7 +32,7 @@ public class RequestPipeline
         IConfigurationsProvider configManager,
         Repositories repositories,
         IBackgroundQueue backgroundQueue,
-        RouteTrie router,
+        IRouter router,
         CacheManager cacheManager,
         Identity.Identity instanceIdentity)
     {
@@ -130,7 +129,7 @@ public class RequestPipeline
         _forwarder = config.Forwarder ?? throw new InvalidOperationException("Forwarder cannot be null in configuration.");
     }
 
-    public async Task ProcessAsync(RequestContext context, HttpContext httpContext)
+    public override async Task ProcessAsync(RequestContext context, HttpContext httpContext)
     {
         try
         {
@@ -194,7 +193,7 @@ public class RequestPipeline
         {
             // Finds the endpoint and it's routed target using the router
             // If no endpoint is found, use the fallback target
-            context.Route = Router.FindClosest(context.Request.Path);
+            context.Route = Router.CurrentTrie.FindClosest(context.Request.Path);
             context.Endpoint = context.Route?.Endpoint;
 
             if (context.Endpoint == null)
@@ -244,7 +243,7 @@ public class RequestPipelineBuilder
     private readonly List<PipeProcessorContainer> _preProcessors = [];
     private readonly List<PipeProcessorContainer> _postProcessors = [];
     private  GatewayPluginContract.IRequestForwarder _forwarder = null!;
-    private RouteTrie? Router { get; set; } = null;
+    private IRouter Router { get; set; } = null;
     private IBackgroundQueue? _backgroundQueue = null;
     private CacheManager? _cacheManager = null;
     private Repositories? _repoFactory = null;
@@ -265,9 +264,9 @@ public class RequestPipelineBuilder
         return this;
     }
     
-    public RequestPipelineBuilder WithRouterFactory(Func<DbContext, IConfigurationsProvider, Task<RouteTrie>> routerFactory)
+    public RequestPipelineBuilder WithRouter(IRouter router)
     {
-        Router = routerFactory.Invoke(_repoFactory!.Context, _configManager!).Result;
+        Router = router;
         return this;
     }
     

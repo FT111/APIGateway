@@ -2,18 +2,23 @@ using System.IO.Compression;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
-namespace Gateway;
+namespace SharedServices;
 
 
-public class PluginManager
+public class PluginManager : IPluginManager
 {
     private readonly IConfiguration _configuration;
-    internal List<IPlugin> Plugins = [];
+    internal readonly List<IPlugin> LoadedPlugins = [];
     internal string PluginDeliveryUrl = string.Empty;
-    internal readonly PluginServiceRegistrar Registrar = new();
+    internal readonly PluginServiceRegistrar ServiceRegistrar = new();
     private List<Func<IPlugin, Task>> _pluginLoadPipeline = [];
-
+    
+    public List<IPlugin> GetPlugins => LoadedPlugins;
+    public List<IPlugin> Plugins => LoadedPlugins;
+    public IPluginServiceRegistrar Registrar => ServiceRegistrar;
+    
     public PluginManager(IConfiguration configuration)
     {
         // Setup default load pipeline
@@ -28,21 +33,21 @@ public class PluginManager
             return Task.CompletedTask;
         });
         
-        _configuration =  configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
-
-    internal void AddPluginLoadStep(Func<IPlugin, Task> step)
+    
+    public void AddPluginLoadStep(Func<IPlugin, Task> step)
     {
         _pluginLoadPipeline.Add(step);
     }
     
-    public class PluginVerificationResult
-    {
-        public List<string> Missing { get; set; } = [];
-        public List<string> Removed { get; set; } = [];
-        public bool IsValid => Missing.Count == 0 && Removed.Count == 0;
-    }
-    
+    // public class PluginVerificationResult
+    // {
+    //     public List<string> Missing { get; set; } = [];
+    //     public List<string> Removed { get; set; } = [];
+    //     public bool IsValid => Missing.Count == 0 && Removed.Count == 0;
+    // }
+
     public ServiceTypes GetServiceTypeByIdentifier(string identifier)
     {
         var service = Registrar.GetServiceByName<IService>(identifier);
@@ -92,12 +97,34 @@ public class PluginManager
         foreach (var assembly in assemblies)
         {
             var types = assembly.GetTypes();
+            // Add unregistered core services from the registrar
+            types = types.Concat(ServiceRegistrar.UnregisteredCoreServices).ToArray();
             foreach (var type in types)
             {
                 if (!type.IsClass || type.IsAbstract || !serviceType.IsAssignableFrom(type) ||
-                    type.Namespace != serviceNamespace) continue;
-                var instance = Activator.CreateInstance(type, _configuration);
-                Registrar.RegisterServiceWithTypeDef(type, null, instance, ServiceTypes.Core);
+                    type.Namespace != serviceNamespace)
+                {
+                    continue;
+                };
+                foreach (var serviceConfig in _configuration.GetSection("coreServices").GetChildren())
+                {
+                    if (serviceConfig["identifier"] != "Core/"+type.Name)
+                    {
+                        continue;
+                    }
+
+                    var identifier = serviceConfig["Identifier"];
+                    if (serviceConfig["SubIdentifier"] is not null)
+                    {
+                        identifier += "/" + serviceConfig["SubIdentifier"];
+                    }
+                    
+                    var instance = Activator.CreateInstance(type, serviceConfig
+                                       .GetSection("Configuration"))
+                                   ?? throw new InvalidOperationException($"Failed to create instance of service {type.Name}.");
+                    Registrar.RegisterInternalServiceWithRuntimeType(type, instance, identifier
+                        ?? throw new InvalidOperationException("Service name not found in configuration."));
+                }
             }
         }
     }
@@ -113,24 +140,36 @@ public class PluginManager
             foreach (var pluginLoaderType in pluginLoader.LoadDefaultAssembly().GetTypes()
                 .Where(t => typeof(IPlugin).IsAssignableFrom(t) && t is { IsAbstract: false, IsClass: true }))
             {
-                // Create an instance of the plugin from the assembly found
                 var plugin = pluginLoader.LoadDefaultAssembly().CreateInstance(pluginLoaderType.FullName) as IPlugin;
                 if (plugin == null)
                 {
                     continue;
                 }
+
+                Plugins.Add(plugin);
                 
-                // Run the plugin load pipeline
-                foreach (var step in _pluginLoadPipeline)
-                {
-                    step(plugin);
-                }
+                plugin.ConfigurePluginRegistrar(Registrar);
             }
         }
         ResolveDependencies();
         return Task.CompletedTask;
     }
-
+    
+        
+    // public async Task<PluginVerificationResult> VerifyInstalledPluginsAsync(IQueryable<PipeService> services)
+    // {
+    //     var requiredPlugins = await ResolveRequiredPluginsAsync(services);
+    //     var installedPlugins = new HashSet<string>(Plugins.Select(p =>
+    //         p.GetManifest().Name + "_" + p.GetManifest().Version));
+    //     
+    //     return new PluginVerificationResult
+    //     {
+    //         Missing = requiredPlugins.Except(installedPlugins).ToList(),
+    //         Removed = installedPlugins.Except(requiredPlugins).ToList()
+    //     };
+    // }
+    
+    
     private static async Task<HashSet<string>> ResolveRequiredPluginsAsync(IQueryable<PipeService> services)
     {
         var requiredPlugins = new HashSet<string>();
@@ -195,6 +234,7 @@ public class PluginManager
 public class PluginServiceRegistrar : IPluginServiceRegistrar
 {
     private readonly Dictionary<string, ServiceContainer<IService>> _services = new();
+    public readonly List<Type> UnregisteredCoreServices = [];
     public IEnumerable<T>  GetServicesByType<T>(ServiceTypes serviceType) where T : IService
     {
         return _services.Values
@@ -204,6 +244,7 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
     
     public ServiceContainer<T> GetServiceByName<T>(string name) where T : IService
     {
+        
         if (_services.TryGetValue(name, out var serviceContainer) && serviceContainer.Instance is T service)
             return new ServiceContainer<T>
             {
@@ -214,26 +255,22 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
         throw new KeyNotFoundException($"Service '{name}' not found.");
     }
 
-    public void RegisterService<T>(IPlugin? parentPlugin, T service, ServiceTypes serviceType) where T : IService
+    public void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService
     {
-        PluginManifest manifest;
-        if (parentPlugin == null)
+        // Core Services are only instantiated if used in the configuration
+        if (serviceType == ServiceTypes.Core)
         {
-            manifest = new PluginManifest
-            {
-                Name = "Core",
-                Version = 0.0,
-                Description = "Core services provided internally.",
-                Author = "Gateway",
-                Dependencies = []
-            };
+            UnregisteredCoreServices.Add(typeof(T));
+            return; 
         }
-        else
-        {
-            manifest = parentPlugin.GetManifest();
-        }
-        var identifier = manifest.Name + manifest.Version + "/" + typeof(T).Name ?? "";
         
+        if (_services.ContainsKey(typeof(T).Name))
+        {
+            throw new InvalidOperationException($"Service '{typeof(T).Name}' is already registered.");
+        }
+        
+        var manifest = parentPlugin.GetManifest();
+        var identifier = manifest.Name + manifest.Version + "/" + typeof(T).Name ?? "";
         
         _services[identifier] = new ServiceContainer<IService>
         {
@@ -248,6 +285,43 @@ public class PluginServiceRegistrar : IPluginServiceRegistrar
         };
         
         
+    }
+    
+    internal void RegisterInternalService(IService service, string serviceName)
+    {
+        if (_services.ContainsKey(serviceName))
+        {
+            throw new InvalidOperationException($"Internal Service '{serviceName}' is already registered." +
+                                                $"Use SubIdentifiers to register multiple instances of the same core service type.");
+        }
+        PluginManifest manifest = new PluginManifest
+        {
+            Name = "Internal",
+            Version = 0.0,
+            Description = "Core services provided internally.",
+            Author = "Gateway",
+            Dependencies = []
+        };
+
+        _services[serviceName] = new ServiceContainer<IService>
+        {
+            Instance = service,
+            ServiceType = ServiceTypes.Core,
+            Identity = new ServiceIdentity
+            {
+                Identifier = serviceName,
+                OriginManifest = manifest,
+            }
+        };
+
+        
+    }    
+    public void RegisterInternalServiceWithRuntimeType(Type serviceInstanceType, object serviceInstance, string componentName)
+    {
+        // var method = typeof(PluginServiceRegistrar).GetMethod(nameof(RegisterInternalService));
+        // var genericMethod = method?.MakeGenericMethod(serviceInstanceType);
+        // genericMethod?.Invoke(this, new[] { serviceInstance, serviceInstanceType, componentName });
+        RegisterInternalService((IService)serviceInstance, componentName);
     }
     
     public void RegisterServiceWithTypeDef(Type serviceInstanceType , IPlugin? parentPlugin, object serviceInstance, ServiceTypes serviceType)

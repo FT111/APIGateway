@@ -34,7 +34,7 @@ public static class Instances
         
         public async Task StartAsync()
         {
-            await Messages.SubscribeAsync(SupervisorEventType.Heartbeat, HandleHeartbeat);
+            // await Messages.SubscribeAsync(DefaultMqCommands.Heartbeat, HandleHeartbeat);
             _ = HandleInstanceHealthCheckingAsync(TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1));
         }
         
@@ -51,8 +51,8 @@ public static class Instances
                 Instances.Remove(instanceId);
                 await Messages.SendEventAsync(new SupervisorEvent
                 {
-                    Type = SupervisorEventType.Command,
-                    Value = $"stop"
+                    CommandKey = DefaultMqCommands.Stop, 
+                    Value = instanceId.ToString()
                 }, instanceId);
             }
             else

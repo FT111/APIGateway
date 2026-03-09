@@ -6,14 +6,14 @@ namespace Gateway;
 
 public static class PluginInitialisation
 {
-    public class PluginConfigManager
+    public class PluginConfigManager : IPLuginInitialiser
     {
         private HashSet<string> InitializedPlugins { get; set; } = [];
         private Dictionary<string, Dictionary<string, PluginConfigDefinition>> PluginConfigDefinitions { get; set; } =  new Dictionary<string, Dictionary<string, PluginConfigDefinition>>();
         private readonly DbContext _context;
-        private readonly PluginManager _manager;
+        private readonly IPluginManager _manager;
 
-        public PluginConfigManager(DbContext context, PluginManager manager)
+        public PluginConfigManager(DbContext context, IPluginManager manager)
         {
             _context = context;
             _manager = manager;
@@ -37,9 +37,9 @@ public static class PluginInitialisation
             _context.SaveChanges();
         }
         
-        public void InitialiseFromPluginManager(PluginManager manager)
+        public void InitialiseFromPluginManager(IPluginManager manager)
         {
-            foreach (var plugin in manager.Plugins)
+            foreach (var plugin in manager.GetPlugins)
             {
                 InitialisePluginIfUninitialised(plugin);
             }

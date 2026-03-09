@@ -1,6 +1,7 @@
 using GatewayPluginContract;
 using Endpoint = GatewayPluginContract.Entities.Endpoint;
 using GatewayPluginContract.Entities;
+using SharedServices;
 
 namespace Gateway.services;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ public class ConfigProvider : IConfigurationsProvider
 {
     private readonly IConfiguration _configuration;
     
-    public ConfigProvider(IConfiguration configuration, PluginManager pluginManager)
+    public ConfigProvider(IConfiguration configuration, IPluginManager pluginManager)
     {
         _configuration = configuration;
         _pluginManager = pluginManager;
@@ -32,11 +33,11 @@ public class ConfigProvider : IConfigurationsProvider
     private ICollection<PipeService> _globalPipeServices = new List<PipeService>();
     private Dictionary<string, ICollection<PipeService>> _endpointPipeServices = new Dictionary<string, ICollection<PipeService>>();
     
-    private Repositories? _dataRepos;
-    private PluginManager? _pluginManager;
+    private Repositories _dataRepos;
+    private IPluginManager _pluginManager;
 
     private void _AddProcessorFromRegistryIfAvailable(string serviceName, uint order, ServiceFailurePolicies onFailure, List<PipeProcessorContainer> processorList,
-        PluginManager.PluginServiceRegistrar registry)
+        IPluginServiceRegistrar registry)
     {
         try
         {
@@ -71,7 +72,11 @@ public class ConfigProvider : IConfigurationsProvider
             try
             {
                 var identifier = service.PluginTitle + service.PluginVersion + "/" + service.ServiceTitle;
-                var type = _pluginManager?.GetServiceTypeByIdentifier(identifier);
+
+
+                var service1 = _pluginManager.Registrar.GetServiceByName<IService>(identifier);
+                var type = service1?.ServiceType ?? throw new KeyNotFoundException($"Service '{identifier}' not found.");
+
                 switch (type)
                 {
                     case ServiceTypes.PreProcessor:

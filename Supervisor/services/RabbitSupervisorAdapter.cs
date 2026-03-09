@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GatewayPluginContract.Entities;
+using GatewayPluginContract.MQ;
 using Microsoft.EntityFrameworkCore.Metadata;
 using RabbitMQ.Client.Events;
 
@@ -37,13 +38,10 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         // Declare exchanges
         _exchangeNames = new Dictionary<SupervisorEventType, string>
         {
-            [SupervisorEventType.Command] = configuration["Queues:Commands"] ?? "commands",
-            [SupervisorEventType.Event] = configuration["Queues:Events"] ?? "events",
-            [SupervisorEventType.Heartbeat] = configuration["Queues:Heartbeats"] ?? "heartbeats",
-            [SupervisorEventType.Request] = configuration["Queues:Requests"] ?? "requests",
-            [SupervisorEventType.Response] = configuration["Queues:Responses"] ?? "responses",
-            [SupervisorEventType.DeliveryUrl] = configuration["Queues:DeliveryUrls"] ?? "delivery_urls"
-         };
+            [SupervisorEventType.Command] = "commands",
+            [SupervisorEventType.Event] = "events",
+        };
+
 
         // Bind exchanges
         foreach (var exchangeName in _exchangeNames.Values)
@@ -68,10 +66,11 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         var props = new BasicProperties()
         {
             CorrelationId = correlationId.ToString(),
+            Headers = new Dictionary<string, object?> {{"command", eventData.CommandKey.ToString()}}
         };
 
         await _channel.BasicPublishAsync(
-            exchange: _exchangeNames[eventData.Type],
+            exchange: _exchangeNames[SupervisorEventType.Command],
             routingKey: instanceId?.ToString() ?? "",
             mandatory: false,
             basicProperties: props,
@@ -79,35 +78,36 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
         );
     }
     
-    public override async Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout)
-    {
-        var queueName = _channel.QueueDeclareAsync().Result.QueueName;
-        _channel.QueueBindAsync(queueName, _exchangeNames[SupervisorEventType.Response], "");
-
-        var tcs = new TaskCompletionSource<SupervisorEvent>();
-        var consumer = new AsyncEventingBasicConsumer(_channel);
-        consumer.ReceivedAsync += async (model, ea) =>
-        {
-            if (ea.BasicProperties.CorrelationId == correlationId.ToString())
-            {
-                var body = ea.Body.ToArray();
-                var message = System.Text.Encoding.UTF8.GetString(body);
-                var eventData = new SupervisorEvent
-                {
-                    Type = SupervisorEventType.Response,
-                    Value = message,
-                    CorrelationId = correlationId
-                };
-                tcs.SetResult(eventData);
-            }
-            await Task.Yield();
-        };
-
-        _channel.BasicConsumeAsync(queue: queueName, autoAck: true, consumer: consumer);
-
-        var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
-        return completedTask == tcs.Task ? await tcs.Task : throw new TimeoutException("Awaiting response timed out");
-    }
+    // public override async Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout)
+    // {
+    //     var queueName = _channel.QueueDeclareAsync().Result.QueueName;
+    //     _channel.QueueBindAsync(queueName, _exchangeNames[DefaultMqCommands.Response], "");
+    //
+    //     var tcs = new TaskCompletionSource<SupervisorEvent>();
+    //     var consumer = new AsyncEventingBasicConsumer(_channel);
+    //     consumer.ReceivedAsync += async (model, ea) =>
+    //     {
+    //         
+    //         if (ea.BasicProperties.CorrelationId == correlationId.ToString())
+    //         {
+    //             var body = ea.Body.ToArray();
+    //             var message = System.Text.Encoding.UTF8.GetString(body);
+    //             var eventData = new SupervisorEvent
+    //             {
+    //                 Type = DefaultMqCommands.Response,
+    //                 Value = message,
+    //                 CorrelationId = correlationId
+    //             };
+    //             tcs.SetResult(eventData);
+    //         }
+    //         await Task.Yield();
+    //     };
+    //
+    //     _channel.BasicConsumeAsync(queue: queueName, autoAck: true, consumer: consumer);
+    //
+    //     var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+    //     return completedTask == tcs.Task ? await tcs.Task : throw new TimeoutException("Awaiting response timed out");
+    // }
 
     public override Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null, Guid? correlationId = null)
     {
@@ -126,9 +126,20 @@ public class RabbitSupervisorAdapter : SupervisorAdapter
             // Convert the received message to SupervisorEvent
             var body = ea.Body.ToArray();
             var message = System.Text.Encoding.UTF8.GetString(body);
+            Contracts.MqCommandKey key;
+            
+            if (ea.BasicProperties.Headers == null) return;
+            ea.BasicProperties.Headers.TryGetValue("command", out var commandIdentifier);
+            if (commandIdentifier != null)
+            {
+                string commandIdentifierString = System.Text.Encoding.UTF8.GetString((byte[])commandIdentifier) ?? throw new InvalidOperationException(); 
+                Contracts.MqCommandKey.TryParse(commandIdentifierString, out key);
+            }
+
+            
             var eventData = new SupervisorEvent
             {
-                Type = eventType,
+                CommandKey = key,
                 Value = message,
                 CorrelationId = ea.BasicProperties.CorrelationId != null ? Guid.Parse(ea.BasicProperties.CorrelationId) : Guid.Empty
             };

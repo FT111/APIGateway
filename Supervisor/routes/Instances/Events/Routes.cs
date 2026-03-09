@@ -1,6 +1,7 @@
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Supervisor.services;
+using static GatewayPluginContract.MQ.Contracts;
 
 namespace Supervisor.routes.Instances.Events;
 
@@ -16,19 +17,28 @@ public class Routes
             {
                 try
                 {
-                    if (e.Value == "update_plugins")
+                    if (e.Type == nameof(DefaultMqCommands.UpdatePlugins))
                     {
                         await mqHandler.SendEventAsync(new SupervisorEvent
                         {
-                            Type = SupervisorEventType.DeliveryUrl,
-                            Value = packages.GetPluginStaticUrl()  
+                            Value = packages.GetPluginStaticUrl()
                         });
                         packages.PackagePluginsAsync();
                         await Task.Delay(50);
                     }
+
+                    MqCommandKey commandKey;
+                    try
+                    {
+                        MqCommandKey.TryParse(e.Type, out commandKey);
+                    }
+                    catch (Exception)
+                    {
+                        return Results.BadRequest($"Invalid event name: {e.Type}");
+                    }
                     await mqHandler.SendEventAsync(new SupervisorEvent
                     {
-                        Type = Enum.Parse<SupervisorEventType>(e.Type, true),
+                        CommandKey = commandKey,
                         Value = e.Value
                     });
                 }

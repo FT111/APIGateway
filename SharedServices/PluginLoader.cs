@@ -1,7 +1,7 @@
 using System.Collections;
 using GatewayPluginContract;
 
-namespace Gateway;
+namespace SharedServices;
 using McMaster.NETCore.Plugins;
 using System.Collections.Generic;
 using System.Collections.Immutable;

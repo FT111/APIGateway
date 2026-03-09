@@ -13,7 +13,8 @@ public class LocalTaskQueue : IBackgroundQueue
         _queue = Channel.CreateBounded<Func<CancellationToken, Repositories, Activity, ILogger, Task>>(new BoundedChannelOptions(100)
         {
             FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = true
+            SingleReader = true,
+            Capacity = 1000000000
         });
     }
 
@@ -24,7 +25,7 @@ public class LocalTaskQueue : IBackgroundQueue
         var isEnqueued = _queue.Writer.TryWrite(task);
         if (!isEnqueued)
         {
-            throw new InvalidOperationException("Failed to enqueue task. The queue is full.");
+            Activity.Current?.AddTag("TaskQueue", "EnqueueFailed");
         }
        
     }

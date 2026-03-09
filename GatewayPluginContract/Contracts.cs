@@ -1,8 +1,11 @@
 ﻿using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq.Expressions;
+using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Serialization;
+using GatewayPluginContract;
 using GatewayPluginContract.Entities;
+using GatewayPluginContract.MQ;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -81,6 +84,7 @@ public class PluginManifest
     public required double Version { get; init; } 
     public required string Description { get; init; }
     public required string Author { get; init; }
+    public List<MqCommandSubmission> Commands { get; init; } = [];
     public List<PluginDependency> Dependencies { get; init; } = [];
 }
 
@@ -189,6 +193,11 @@ public interface IPresetConfigValuePrompts
 public interface IPluginServiceRegistrar
 {
     void RegisterService<T>(IPlugin parentPlugin, T service, ServiceTypes serviceType) where T : IService;
+    void RegisterServiceWithTypeDef(Type serviceInstanceType, IPlugin parentPlugin, object serviceInstance, ServiceTypes serviceType);
+    IEnumerable<T> GetServicesByType<T>(ServiceTypes serviceType) where T : IService;
+    ServiceContainer<T> GetServiceByName<T>(string name) where T : IService;
+    void RegisterInternalServiceWithRuntimeType(Type serviceInstanceType, object serviceInstance, string identifier);
+    void Reset();
 }
 
 public interface ITelemetryRegistrar
@@ -208,7 +217,14 @@ public class PluginConfigDefinition
     public string ConstraintDescription { get; set; } = "";
     public Func<DbContext,  List<string>>? ValuePrompts;
     public Predicate<string>? ValueConstraint { get; set; }
-    
+}
+
+public class MqCommandSubmission
+{
+    public required string Identifier { get; init; }
+    public required Func<GatewayBase, string?, Task> Handler { get; init; }
+    public Task HandleAsync(GatewayBase gateway, string? param) => Handler(gateway, param);
+
 }
 
 public class DataCard<TModel> where TModel : class, Visualisation.ICardVisualisation
@@ -264,22 +280,132 @@ public abstract class StoreFactory(IConfiguration configuration) : IService
 public abstract class SupervisorAdapter(IConfiguration configuration) : IService
 {
     public abstract Task SendEventAsync(SupervisorEvent eventData, Guid? targetInstanceId = null, Guid? correlationId = null);
-    public abstract Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout);
+    // public abstract Task<SupervisorEvent> AwaitResponseAsync(Guid correlationId, TimeSpan timeout);
     public abstract Task SubscribeAsync(SupervisorEventType eventType, Func<SupervisorEvent, Task> handler, Guid? instanceId = null, Guid? correlationId = null);
 }
 
 public enum SupervisorEventType
 {
     Command,
-    DeliveryUrl,
-    Request,
-    Response,
-    Event,    
-    Heartbeat
+    Event
+}
+
+public abstract class RequestPipelineBase
+{
+    public IRouter Router;
+    public abstract Task ProcessAsync(RequestContext context, HttpContext httpContext);
+}
+
+public interface IRouter
+{
+    IRouteTrie CurrentTrie { get; }
+    IRouteTrie BufferedTrie { get; }
+    void BufferNewTrie(IRouteTrie newTrie);
+    void SwapTries();
+    void SwapTriesAtTime(DateTime swapTime);
+}
+
+public interface IRouterFactory
+{
+    Task<IRouteTrie> BuildRouteTrie();
+    Task<IRouter> BuildRouterAsync();
+    void AddLogger(ILogger logger);
+}
+
+public interface IRouteTrie
+{
+    void Insert(string path, Endpoint endpoint, Dictionary<string, Dictionary<string, string>> collatedPluginConfigs);
+    RouteNode? FindClosest(string path);
+}
+
+public static class DefaultMqCommands
+{
+    public static readonly Contracts.MqCommandKey Restart = Contracts.MqCommandKey.Internal("restart");
+    public static readonly Contracts.MqCommandKey ApplyBufferedRoutes = Contracts.MqCommandKey.Internal("routes.apply-preload");
+    public static readonly Contracts.MqCommandKey UpdateRoutes = Contracts.MqCommandKey.Internal("routes.update");
+    public static readonly Contracts.MqCommandKey UpdatePlugins = Contracts.MqCommandKey.Internal("plugins.update");
+    public static readonly Contracts.MqCommandKey Stop = Contracts.MqCommandKey.Internal("stop");
+    public static readonly Contracts.MqCommandKey PreloadRoutes = Contracts.MqCommandKey.Internal("routes.preload");
+    public static readonly Contracts.MqCommandKey Heartbeat = Contracts.MqCommandKey.Internal("heartbeat");
+    public static readonly Contracts.MqCommandKey UpdateDeliveryUrl = Contracts.MqCommandKey.Internal("packages.url.update");
+    public static readonly Contracts.MqCommandKey Response = Contracts.MqCommandKey.Internal("response");
+    
 }
 
 public interface IPluginPackageManager : IService
 {
     public string GetPluginStaticUrl();
     public void PackagePluginsAsync();
+}
+
+public interface IPluginManager
+{
+    public List<IPlugin> Plugins { get; }
+    public Task LoadPluginsAsync(string path);
+    public void AddPluginLoadStep(Func<IPlugin, Task> step);
+    public List<IPlugin> GetPlugins { get; }
+
+    public Task<PluginVerificationResult> VerifyInstalledPluginsAsync(
+        IQueryable<PipeService> services);
+    
+    public Task DownloadAndInstallPluginAsync(string identifier);
+
+    public Task RemovePluginAsync(string identifier);
+
+    public IPluginServiceRegistrar Registrar { get; }
+
+}
+
+public interface IPLuginInitialiser
+{
+    void InitialiseFromPluginManager(IPluginManager manager);
+    void InitialisePluginIfUninitialised(IPlugin plugin);
+}
+
+public class PluginVerificationResult
+{
+    public List<string> Missing { get; set; } = [];
+    public List<string> Removed { get; set; } = [];
+    public bool IsValid => Missing.Count == 0 && Removed.Count == 0;
+}
+
+
+public interface IIdentity
+{
+    Guid Id { get; }
+    string Sign(string data);
+    byte[] GetPublicKey();
+    Instance ToInstance();
+}
+
+public abstract class GatewayBase
+{
+    public IConfiguration BaseConfiguration { get; }
+    public IIdentity Identity { get; init; }
+    public StoreFactory Store { get; }
+    // Use the contract interface for background queue
+    public IBackgroundQueue LocalTaskQueue { get; set; }
+    public ILogger? Logger { get; set; }
+    public IPluginManager PluginManager { get; set; } = null!;
+    public IPLuginInitialiser PluginInitManager { get; set;  }
+    public RequestPipelineBase Pipe { get; set; } = null!;
+    public IRouterFactory RouterFactory { get; set; }
+    
+
+    protected GatewayBase(IConfiguration configuration, StoreFactory store, IBackgroundQueue localTaskQueue, 
+        IPluginManager pluginManager, RequestPipelineBase requestPipeline, IRouterFactory routerFactory, 
+        IPLuginInitialiser pluginInitManager, IIdentity identity)
+    {
+        BaseConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        Store = store ?? throw new ArgumentNullException(nameof(store));
+        LocalTaskQueue = localTaskQueue ?? throw new ArgumentNullException(nameof(localTaskQueue));
+        PluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
+        Pipe = requestPipeline ?? throw new ArgumentNullException(nameof(requestPipeline));
+        RouterFactory = routerFactory ?? throw new ArgumentNullException(nameof(routerFactory));
+        PluginInitManager = pluginInitManager ?? throw new ArgumentNullException(nameof(pluginInitManager));
+        Identity = identity ?? throw new ArgumentNullException(nameof(identity));
+    }
+
+    // Small helper so concrete implementations can extend logger behaviour
+    public virtual void AddLogger(ILogger logger) => Logger = logger;
 }

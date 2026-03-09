@@ -20,7 +20,7 @@ public class CacheManager: PluginCacheManager
         Task.Run(() => _cacheHandler.RunAsync(_daemonCancellationTokenSource.Token));
     }
     
-    public void ConfigurePluginManager(PluginManager pm)
+    public void ConfigurePluginManager(IPluginManager pm)
     {
         pm.AddPluginLoadStep(plugin =>
             {
