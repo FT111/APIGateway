@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GatewayPluginContract;
 using GatewayPluginContract.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,17 @@ public class UpdateRoutes : InternalContracts.CommandDefinition
     
     public async Task Handle( GatewayBase gateway, string? param)
     {
-        var paramJson = System.Text.Json.JsonDocument.Parse(param ?? "{}");
+        JsonDocument paramJson;
+        try
+        {
+            paramJson = JsonDocument.Parse(param ?? "{}");
+        }
+        catch (JsonException ex)
+        {
+            gateway.Pipe.Router.SwapTries();
+            return;
+        }
+        
         var updateAt = paramJson.RootElement.TryGetProperty("updateAt", out var updateAtElement) && updateAtElement.ValueKind == System.Text.Json.JsonValueKind.String
             ? updateAtElement.GetString()
             : null;
@@ -35,7 +46,5 @@ public class UpdateRoutes : InternalContracts.CommandDefinition
                 throw new ArgumentException("Invalid updateAt parameter format. Expected a valid DateTime string.");
             }
         }
-        
-        gateway.Pipe.Router.SwapTries();
     }
 }
